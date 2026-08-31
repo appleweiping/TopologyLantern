@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "compensated PMOS-input stage",
+  "supply_voltage": 1.2,
+  "input_mode": "differential",
+  "output_mode": "single",
+  "polarity": "pmos_input",
+  "load_preference": "active",
+  "require_compensation": true,
+  "allow_resistive_bias": false,
+  "allowed_devices": [
+    "nmos",
+    "pmos",
+    "capacitor",
+    "current_source"
+  ],
+  "limits": {
+    "max_candidates": 6,
+    "max_states": 2000,
+    "max_depth": 8,
+    "max_devices": 20,
+    "max_canonical_permutations": 40320
+  }
+}

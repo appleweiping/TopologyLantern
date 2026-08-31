@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="500" viewBox="0 0 1240 500" role="img" aria-labelledby="title description">
+  <title id="title">TopologyLantern candidate generation command-line demonstration</title>
+  <desc id="description">Recorded output from generating six candidates from the low_voltage_diff_stage example with the installed command-line program.</desc>
+  <rect width="1240" height="500" rx="12" fill="#111827"/>
+  <circle cx="24" cy="22" r="6" fill="#fb7185"/>
+  <circle cx="44" cy="22" r="6" fill="#fbbf24"/>
+  <circle cx="64" cy="22" r="6" fill="#34d399"/>
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="14">
+    <text x="22" y="54" fill="#93c5fd">$ topology-lantern generate examples/low_voltage_diff_stage.json --limit 6</text>
+    <text x="22" y="82" fill="#6ee7b7">TopologyLantern: 6 candidates</text>
+    <text x="22" y="108" fill="#e5e7eb">spec: sha256:de7b6207e6677c688b6aa0055c65b5d2b779c743c20392a1892824cec3c13512</text>
+    <text x="22" y="134" fill="#e5e7eb">search: 13 explored, 0 pruned, 0 duplicate, exhausted=false</text>
+    <text x="22" y="170" fill="#fde68a">1. TL-2a033a1ce04c front=0 score=26 devices=5 stages=1 headroom=2</text>
+    <text x="42" y="194" fill="#e5e7eb">input.diff_pair -&gt; tail.current_source -&gt; load.active_mirror -&gt; output.direct</text>
+    <text x="22" y="226" fill="#fde68a">2. TL-b4f99d5eafc1 front=1 score=28 devices=5 stages=1 headroom=2</text>
+    <text x="42" y="250" fill="#e5e7eb">input.diff_pair -&gt; tail.current_source -&gt; load.resistive -&gt; output.direct</text>
+    <text x="22" y="282" fill="#fde68a">3. TL-24dde76e543c front=1 score=32 devices=5 stages=1 headroom=2</text>
+    <text x="42" y="306" fill="#e5e7eb">input.diff_pair -&gt; tail.resistor -&gt; load.active_mirror -&gt; output.direct</text>
+    <text x="22" y="338" fill="#fde68a">4. TL-9fe18125a784 front=1 score=42 devices=7 stages=2 headroom=3</text>
+    <text x="42" y="362" fill="#e5e7eb">input.diff_pair -&gt; tail.current_source -&gt; load.active_mirror -&gt; output.source_follower</text>
+    <text x="22" y="394" fill="#fde68a">5. TL-1899f6330a4b front=2 score=44 devices=7 stages=2 headroom=3</text>
+    <text x="42" y="418" fill="#e5e7eb">input.diff_pair -&gt; tail.current_source -&gt; load.resistive -&gt; output.source_follower</text>
+    <text x="22" y="450" fill="#fde68a">6. TL-b54d47647f5d front=2 score=48 devices=7 stages=2 headroom=3</text>
+    <text x="42" y="474" fill="#e5e7eb">input.diff_pair -&gt; tail.resistor -&gt; load.active_mirror -&gt; output.source_follower</text>
+  </g>
+</svg>

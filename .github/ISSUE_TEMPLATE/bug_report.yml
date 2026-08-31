@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible generation, ranking, or replay defect
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: TopologyLantern and Python versions
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: Minimal original specification
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result or invariant
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Linux, macOS, Windows, Other]
+    validations:
+      required: true

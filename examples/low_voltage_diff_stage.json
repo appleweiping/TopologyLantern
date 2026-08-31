@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "name": "low-voltage differential stage",
+  "supply_voltage": 1.8,
+  "input_mode": "differential",
+  "output_mode": "single",
+  "polarity": "nmos_input",
+  "load_preference": "either",
+  "require_compensation": false,
+  "allow_resistive_bias": true,
+  "allowed_devices": [
+    "nmos",
+    "pmos",
+    "resistor",
+    "capacitor",
+    "current_source"
+  ],
+  "limits": {
+    "max_candidates": 12,
+    "max_states": 5000,
+    "max_depth": 8,
+    "max_devices": 24,
+    "max_canonical_permutations": 40320
+  },
+  "objectives": {
+    "device_count": 4,
+    "headroom": 3,
+    "symmetry": 2,
+    "passives": 1,
+    "warnings": 5
+  }
+}

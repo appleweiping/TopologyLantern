@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose a rule, obligation, constraint, metric, or output improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: intent
+    attributes:
+      label: Explicit design intent
+      description: State the conceptual choice that cannot currently be represented.
+    validations:
+      required: true
+  - type: textarea
+    id: rule
+    attributes:
+      label: Proposed obligation and rule
+      description: Describe applicability, graph edit, facts, and rationale.
+    validations:
+      required: true
+  - type: textarea
+    id: bounds
+    attributes:
+      label: Bounds and limitations
+      description: Identify search growth, invalid cases, and claims the rule must avoid.
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Verification strategy
+    validations:
+      required: true
