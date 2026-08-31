@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from topology_lantern._version import __version__
+
 
 class PortRole(StrEnum):
     INPUT = "input"
@@ -242,7 +244,7 @@ class GenerationResult:
     def as_dict(self) -> dict[str, object]:
         return {
             "schema_version": 1,
-            "tool": {"name": "TopologyLantern", "version": "0.1.0"},
+            "tool": {"name": "TopologyLantern", "version": __version__},
             "spec_fingerprint": self.spec_fingerprint,
             "search": {
                 "requested_limit": self.requested_limit,

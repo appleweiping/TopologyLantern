@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "name": "SKY130 reference common-source stage",
+  "supply_voltage": 1.8,
+  "input_mode": "single",
+  "output_mode": "single",
+  "polarity": "nmos_input",
+  "load_preference": "resistive",
+  "require_compensation": false,
+  "allow_resistive_bias": false,
+  "allowed_devices": [
+    "nmos",
+    "resistor"
+  ],
+  "limits": {
+    "max_candidates": 4,
+    "max_states": 128,
+    "max_depth": 4,
+    "max_devices": 8,
+    "max_canonical_permutations": 720
+  },
+  "objectives": {
+    "device_count": 4,
+    "headroom": 3,
+    "symmetry": 1,
+    "passives": 1,
+    "warnings": 5
+  }
+}

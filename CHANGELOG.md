@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 - 2026-08-31
+
+- Add a deterministic, versioned analog topology-and-sizing benchmark contract.
+- Add strict interoperability documentation and validation tests.
+- Add bounded strict JSON/report loading, scaling evidence, and synchronized runtime version metadata.
+
 All notable changes are recorded here. Versions follow semantic versioning.
 
 ## 0.1.0 - 2026-08-31
