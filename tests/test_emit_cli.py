@@ -345,6 +345,30 @@ def test_cli_rejects_invalid_result_reports(tmp_path: Path, content: str) -> Non
     assert errors.getvalue().startswith("topology-lantern:")
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        '{"schema_version":1,"schema_version":1}',
+        '{"schema_version":1,"value":NaN}',
+        "[" * 1_500 + "0" + "]" * 1_500,
+    ],
+)
+def test_cli_report_loader_rejects_ambiguous_or_deep_json(tmp_path: Path, content: str) -> None:
+    report = tmp_path / "hostile.json"
+    report.write_text(content, encoding="utf-8")
+    errors = io.StringIO()
+    assert main(["explain", str(report), "TL-nope"], stderr=errors) == EXIT_INPUT
+    assert errors.getvalue().startswith("topology-lantern:")
+
+
+def test_cli_report_loader_rejects_oversized_json(tmp_path: Path) -> None:
+    report = tmp_path / "oversized.json"
+    report.write_bytes(b" " * 1_048_577)
+    errors = io.StringIO()
+    assert main(["explain", str(report), "TL-nope"], stderr=errors) == EXIT_INPUT
+    assert "byte input limit" in errors.getvalue()
+
+
 def test_cli_rejects_unknown_candidate_and_spice_index(tmp_path: Path) -> None:
     spec_path, report_path, _ = generate_report(tmp_path)
     errors = io.StringIO()

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.27,<2"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "topology-lantern"
-version = "0.1.0"
+version = "0.2.0"
 description = "Explainable deterministic generation of analog topology candidates"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,7 +27,10 @@ dependencies = []
 [project.optional-dependencies]
 dev = [
   "bandit>=1.8",
-  "build>=1.2",
+  "build==1.6.0",
+  "twine==7.0.0",
+  "hatchling==1.32.0",
+  "jsonschema>=4.23",
   "mypy>=1.15",
   "pytest>=8.3",
   "pytest-cov>=6",
@@ -35,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-topology-lantern = "topology_lantern.cli:main"
+topology-lantern = "topology_lantern.cli:entrypoint"
 
 [project.urls]
 Documentation = "https://github.com/appleweiping/TopologyLantern#readme"
@@ -43,7 +46,7 @@ Issues = "https://github.com/appleweiping/TopologyLantern/issues"
 Source = "https://github.com/appleweiping/TopologyLantern"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/examples", "/docs", "/*.md", "/LICENSE"]
+include = ["/src", "/tests", "/examples", "/benchmarks", "/docs", "/*.md", "/LICENSE", "/CITATION.cff"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/topology_lantern"]

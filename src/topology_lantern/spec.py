@@ -12,6 +12,70 @@ from typing import Any
 
 from topology_lantern.types import DeviceKind, SpecError
 
+_MAX_JSON_BYTES = 1_048_576
+_MAX_JSON_DEPTH = 64
+_MAX_JSON_NODES = 10_000
+
+
+def _object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise SpecError(f"duplicate JSON key {key!r}")
+        result[key] = value
+    return result
+
+
+def _reject_constant(token: str) -> None:
+    raise SpecError(f"non-finite JSON number {token!r}")
+
+
+def _finite_float(token: str) -> float:
+    value = float(token)
+    if not math.isfinite(value):
+        raise SpecError(f"non-finite JSON number {token!r}")
+    return value
+
+
+def _check_json_complexity(value: object, context: str) -> None:
+    pending: list[tuple[object, int]] = [(value, 0)]
+    nodes = 0
+    while pending:
+        item, depth = pending.pop()
+        nodes += 1
+        if depth > _MAX_JSON_DEPTH or nodes > _MAX_JSON_NODES:
+            raise SpecError(f"{context} exceeds JSON complexity limits")
+        if isinstance(item, dict):
+            pending.extend((child, depth + 1) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
+
+
+def _load_json_object(path: str | Path, context: str) -> Mapping[str, Any]:
+    source = Path(path)
+    try:
+        with source.open("rb") as stream:
+            payload = stream.read(_MAX_JSON_BYTES + 1)
+    except OSError as exc:
+        raise SpecError(f"cannot read {context} {path}: {exc}") from exc
+    if len(payload) > _MAX_JSON_BYTES:
+        raise SpecError(f"{context} exceeds {_MAX_JSON_BYTES} byte input limit")
+    try:
+        value = json.loads(
+            payload.decode("utf-8"),
+            object_pairs_hook=_object_pairs,
+            parse_constant=_reject_constant,
+            parse_float=_finite_float,
+        )
+    except SpecError:
+        raise
+    except (RecursionError, OverflowError, UnicodeError, ValueError) as exc:
+        raise SpecError(f"{context} is invalid JSON: {exc}") from exc
+    _check_json_complexity(value, context)
+    if not isinstance(value, Mapping):
+        raise SpecError(f"{context} must contain a JSON object")
+    return value
+
 
 @dataclass(frozen=True, slots=True)
 class SearchLimits:
@@ -47,17 +111,7 @@ class DesignSpec:
 
     @classmethod
     def from_json(cls, path: str | Path) -> DesignSpec:
-        try:
-            text = Path(path).read_text(encoding="utf-8")
-        except (OSError, UnicodeError) as exc:
-            raise SpecError(f"cannot read specification {path}: {exc}") from exc
-        try:
-            value = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SpecError(f"specification is invalid JSON: {exc.msg}") from exc
-        if not isinstance(value, Mapping):
-            raise SpecError("specification must contain a JSON object")
-        return cls.from_mapping(value)
+        return cls.from_mapping(_load_json_object(path, "specification"))
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> DesignSpec:

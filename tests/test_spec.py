@@ -139,6 +139,28 @@ def test_json_loader_rejects_missing_invalid_and_non_object(tmp_path: Path) -> N
         DesignSpec.from_json(array)
 
 
+def test_json_loader_rejects_duplicate_nonfinite_deep_and_oversized_input(tmp_path: Path) -> None:
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text('{"name":"one","name":"two","supply_voltage":1.8}', encoding="utf-8")
+    with pytest.raises(SpecError, match="duplicate JSON key"):
+        DesignSpec.from_json(duplicate)
+
+    nonfinite = tmp_path / "nonfinite.json"
+    nonfinite.write_text('{"name":"stage","supply_voltage":1e999}', encoding="utf-8")
+    with pytest.raises(SpecError, match="non-finite"):
+        DesignSpec.from_json(nonfinite)
+
+    deep = tmp_path / "deep.json"
+    deep.write_text("[" * 1_500 + "0" + "]" * 1_500, encoding="utf-8")
+    with pytest.raises(SpecError, match=r"invalid JSON|complexity limits"):
+        DesignSpec.from_json(deep)
+
+    oversized = tmp_path / "oversized.json"
+    oversized.write_bytes(b" " * 1_048_577)
+    with pytest.raises(SpecError, match="byte input limit"):
+        DesignSpec.from_json(oversized)
+
+
 def test_input_is_not_mutated() -> None:
     value = minimal(limits={"max_candidates": 2}, allowed_devices=["nmos"])
     before = json.loads(json.dumps(value))

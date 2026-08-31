@@ -37,6 +37,20 @@ python -m build
 
 ## Generate candidates
 
+## Reproducible sizing benchmark
+
+Export the strict cross-project topology-and-sizing contract:
+
+```console
+topology-lantern benchmark examples/low_voltage_diff_stage.json --limit 4 --pretty --output benchmark.json
+```
+
+The contract includes canonical topology signatures, bounded sizing variables,
+provenance, expected metrics, and a canonical SHA-256. BiasWeave can consume it
+without importing this package. See `benchmarks/README.md` and
+`docs/validation.md`. Its analytic metrics are regression proxies, not
+simulation results.
+
 The included differential-stage specification exercises independent choices
 for tail bias, load, output exposure, and buffering:
 
@@ -58,7 +72,7 @@ topology-lantern generate examples/low_voltage_diff_stage.json \
   --limit 6 --format spice --candidate 1
 ```
 
-The SPICE form contains placeholder models and values and a prominent warning.
+The SPICE form contains intentionally symbolic, unsized models and values and a prominent warning.
 It exists to make the graph easy to inspect, not to create a runnable design.
 
 ## Specification

@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from topology_lantern import __version__
 from topology_lantern.canonical import topology_signature
 from topology_lantern.explain import replay_rule_ids, verify_replay
 from topology_lantern.rank import dominates, objective_vector, rank_candidates
@@ -276,7 +277,7 @@ def test_generation_result_serializes_search_evidence() -> None:
     result = generate_candidates(spec(), limit=2)
     value = result.as_dict()
     assert value["schema_version"] == 1
-    assert value["tool"] == {"name": "TopologyLantern", "version": "0.1.0"}
+    assert value["tool"] == {"name": "TopologyLantern", "version": __version__}
     assert value["search"]["explored_states"] == result.explored_states
     assert value["search"]["requested_limit"] == result.requested_limit
     assert len(value["candidates"]) == 2

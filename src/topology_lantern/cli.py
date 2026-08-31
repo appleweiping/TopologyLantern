@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TextIO
 
+from topology_lantern._version import __version__
+from topology_lantern.benchmark import benchmark_json
 from topology_lantern.canonical import candidate_id, topology_signature
 from topology_lantern.emit import candidate_spice, result_json, result_text
 from topology_lantern.explain import replay_rule_ids
 from topology_lantern.search import candidate_from_state, generate_candidates
-from topology_lantern.spec import DesignSpec
+from topology_lantern.spec import DesignSpec, _load_json_object
 from topology_lantern.types import LanternError, ReplayError, SpecError
 
 EXIT_OK = 0
@@ -26,6 +27,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="topology-lantern",
         description="Generate bounded, explainable conceptual analog topology candidates.",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
     generate = commands.add_parser("generate", help="search from a JSON design specification")
@@ -35,6 +37,14 @@ def _parser() -> argparse.ArgumentParser:
     generate.add_argument("--candidate", type=int, default=1, help="1-based candidate for SPICE")
     generate.add_argument("--pretty", action="store_true")
     generate.add_argument("--output")
+
+    benchmark = commands.add_parser(
+        "benchmark", help="emit a machine-readable topology-and-sizing benchmark"
+    )
+    benchmark.add_argument("spec")
+    benchmark.add_argument("--limit", type=int)
+    benchmark.add_argument("--pretty", action="store_true")
+    benchmark.add_argument("--output")
 
     validate = commands.add_parser("validate-spec", help="validate and fingerprint a spec")
     validate.add_argument("spec")
@@ -58,12 +68,7 @@ def _write(text: str, destination: str | None, stdout: TextIO) -> None:
 
 
 def _load_report(path: str) -> Mapping[str, object]:
-    try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise SpecError(f"cannot load result report: {exc}") from exc
-    if not isinstance(value, Mapping):
-        raise SpecError("result report must be a JSON object")
+    value = _load_json_object(path, "result report")
     schema_version = value.get("schema_version")
     if (
         isinstance(schema_version, bool)
@@ -250,6 +255,11 @@ def main(
             spec = DesignSpec.from_json(args.spec)
             output.write(f"valid specification: sha256:{spec.fingerprint()}\n")
             return EXIT_OK
+        if args.command == "benchmark":
+            spec = DesignSpec.from_json(args.spec)
+            result = generate_candidates(spec, limit=args.limit)
+            _write(benchmark_json(spec, result, pretty=args.pretty), args.output, output)
+            return EXIT_OK
         if args.command == "explain":
             report = _load_report(args.report)
             output.write(_explain_mapping(_candidate_mapping(report, args.candidate_id)))
@@ -297,3 +307,9 @@ def main(
         errors.write(f"topology-lantern: {exc}\n")
         return EXIT_INPUT
     return EXIT_INPUT
+
+
+def entrypoint() -> None:
+    """Convert the library-friendly status code into a process status."""
+
+    raise SystemExit(main())
