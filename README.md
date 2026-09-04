@@ -37,6 +37,38 @@ python -m build
 
 ## Generate candidates
 
+Search a JSON design specification and rank the topologies it admits:
+
+```console
+topology-lantern generate examples/low_voltage_diff_stage.json --limit 2
+```
+
+```text
+TopologyLantern: 2 candidates
+spec: sha256:de7b6207e6677c688b6aa0055c65b5d2b779c743c20392a1892824cec3c13512
+search: 6 explored, 0 pruned, 0 duplicate, exhausted=false
+1. TL-2a033a1ce04c front=0 score=26 devices=5 stages=1 headroom=2
+   input.diff_pair -> tail.current_source -> load.active_mirror -> output.direct
+2. TL-9fe18125a784 front=1 score=42 devices=7 stages=2 headroom=3
+   input.diff_pair -> tail.current_source -> load.active_mirror -> output.source_follower
+```
+
+Every run reports the spec fingerprint and the search accounting (explored,
+pruned, duplicate, and whether the space was exhausted), so a result can be tied
+back to the exact input it came from. `front=0` marks the Pareto front.
+
+`--format json` emits the same result as a machine-readable report, and
+`--format spice --candidate N` writes a conceptual netlist for one candidate:
+
+```console
+topology-lantern generate examples/low_voltage_diff_stage.json --format spice --candidate 1
+```
+
+That netlist is a **review artifact, not a design**: devices are unsized,
+placeholders such as `{I_UNSIZED}` are left symbolic, and the header says so.
+Use it to reason about structure, not to simulate. `explain` and `replay` work
+on a saved JSON report if you want the per-step reasoning for one candidate.
+
 ## Reproducible sizing benchmark
 
 Export the strict cross-project topology-and-sizing contract:
