@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-09-07
+
 ### Added
 
 - `topology-lantern diff`: compare the topologies two specifications admit, matched by the
