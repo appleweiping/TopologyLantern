@@ -7,6 +7,7 @@ from dataclasses import replace
 
 from topology_lantern.canonical import candidate_id, state_signature, topology_signature
 from topology_lantern.constraints import final_violations, has_error, partial_violations
+from topology_lantern.ledger import LedgerRecorder
 from topology_lantern.obligations import initial_state
 from topology_lantern.rank import measure, rank_candidates, with_warning_count
 from topology_lantern.rules import RULES, applicable_rules
@@ -23,14 +24,23 @@ def _priority(state: SearchState) -> tuple[object, ...]:
     )
 
 
-def candidate_from_state(spec: DesignSpec, state: SearchState) -> Candidate | None:
+def candidate_from_state(
+    spec: DesignSpec,
+    state: SearchState,
+    recorder: LedgerRecorder | None = None,
+) -> Candidate | None:
     violations = final_violations(spec, state)
-    if has_error(violations):
-        return None
     signature = topology_signature(
         state.topology,
         max_permutations=spec.limits.max_canonical_permutations,
     )
+    if has_error(violations):
+        # The signature is computed before the refusal rather than after the
+        # early return, so a refused topology can be named. Without it the only
+        # record of this graph would be an increment.
+        if recorder is not None:
+            recorder.final(signature, violations)
+        return None
     base = Candidate(
         candidate_id=candidate_id(signature),
         signature=signature,
@@ -66,6 +76,7 @@ def generate_candidates(
         )
     }
     completed: dict[str, Candidate] = {}
+    recorder = LedgerRecorder()
     explored = 0
     pruned = 0
     duplicates = 0
@@ -75,12 +86,15 @@ def generate_candidates(
         explored += 1
         if len(state.trace) > selected.limits.max_depth:
             pruned += 1
+            recorder.depth()
             continue
-        if has_error(partial_violations(selected, state)):
+        partial = partial_violations(selected, state)
+        if has_error(partial):
             pruned += 1
+            recorder.partial(partial)
             continue
         if not state.obligations:
-            candidate = candidate_from_state(selected, state)
+            candidate = candidate_from_state(selected, state, recorder)
             if candidate is None:
                 pruned += 1
             else:
@@ -88,8 +102,16 @@ def generate_candidates(
             continue
         obligation = state.obligations[0]
         rules = applicable_rules(selected, state, obligation)
+        # Rules are filtered by a predicate over the specification before any
+        # state is built, so a forbidden rule leaves no prune behind. Recording
+        # the filter itself is the only place that difference survives.
+        recorder.rules(
+            tuple(rule.rule_id for rule in RULES if rule.obligation is obligation.kind),
+            tuple(rule.rule_id for rule in rules),
+        )
         if not rules:
             pruned += 1
+            recorder.no_rule(obligation)
             continue
         for rule in rules:
             child = rule.apply(selected, state, obligation)
@@ -114,4 +136,5 @@ def generate_candidates(
         exhausted=not queue,
         requested_limit=requested,
         rule_catalog=tuple(rule.rule_id for rule in RULES),
+        ledger=recorder.finish(),
     )

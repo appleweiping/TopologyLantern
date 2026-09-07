@@ -190,6 +190,86 @@ headroom proxy, passives, symmetry penalty, warnings, and stage count. Declared
 integer objective weights order candidates inside a front. These metrics are
 transparent structural proxies, not predicted circuit performance.
 
+A ledger records, for every rule, the states it produced and the times the
+specification refused it. That is where a change between two runs shows up:
+rules are gated before a state is built, so a forbidden rule leaves no pruned
+state behind.
+
+## Comparing two specifications
+
+Iterating on a specification is the ordinary workflow, and each `generate` run
+was an island. Candidate numbering is no help across runs, because it follows
+the ranking and moves whenever anything else does.
+
+```console
+topology-lantern diff before.json after.json
+```
+
+```
+4 topologies in both, 4 only on the left, 0 only on the right.
+
+Rules only the left specification permits: tail.resistor
+
+Reordered:
+  TL-b4f99d5eafc1  3 -> 2 (up 1)
+  TL-9fe18125a784  5 -> 3 (up 2)
+  TL-1899f6330a4b  6 -> 4 (up 2)
+
+Lost (present on the left only):
+  TL-bc45e11450ed  at position 2
+    cannot exist under the other specification, which closed off tail.resistor; this topology uses it
+```
+
+Topologies are matched by the identifier-independent signature, so the same
+graph is recognized across runs whatever its nets were called and whichever
+rule order produced it.
+
+### How firmly an absence is explained
+
+The reason a topology is missing comes in four strengths, and they are not
+interchangeable:
+
+1. **Built and refused.** The other search constructed the graph and its final
+   checks rejected it. The failing constraint codes are reported. This is a
+   fact about a graph that existed.
+2. **A rule was closed off.** The topology's own trace uses a rule the other
+   specification governed and never permitted, so that run could not have built
+   it. This is proved from the trace, not inferred from the absence.
+3. **A rule every other topology carries.** The other run's topologies all use
+   a rule this one lacks. Deliberately weaker wording, because it is an
+   observation about that run's output rather than a rule read out of its
+   specification. This is what a newly required stage looks like from here: a
+   requirement adds an obligation instead of closing a rule off.
+4. **No cause to offer.** The topology is simply absent. Saying so is better
+   than picking one of the above.
+
+A search that stopped at its limits is flagged before any of this, because an
+absence from an unfinished search may mean the topology was out of budget.
+
+### Why the ledger records rules rather than prunes
+
+The obvious place to look for a cause is the pruned states, and on real
+specifications it is the wrong one. A rule declares a predicate over the
+specification and `applicable_rules` consults it before the rule ever runs, so
+a rule the specification forbids produces no state and therefore no prune. On
+the bundled examples the search prunes nothing at all; every topology that
+disappears does so because a rule stopped being applicable, several steps
+before anything could be rejected.
+
+The ledger therefore counts, per rule, the states it produced and the times it
+governed the obligation in hand and was refused. A rule with refusals and no
+applications is one the specification has closed off. Rejection counts by
+cause, by violation code and by obligation kind are kept too, along with the
+complete topologies that were built and then refused, bounded and flagged when
+that bound is reached.
+
+```console
+topology-lantern generate spec.json --format json --ledger
+```
+
+The ledger is opt-in. Readers of this report reject unknown fields, which is
+the right behaviour, so the default document is unchanged.
+
 ## Explanation and replay
 
 Generate a report, copy a candidate ID, then run:

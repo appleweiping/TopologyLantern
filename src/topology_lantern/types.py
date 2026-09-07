@@ -5,8 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from topology_lantern._version import __version__
+
+if TYPE_CHECKING:  # `ledger` imports this module, so the cycle stays type-only.
+    from topology_lantern.ledger import SearchLedger
 
 
 class PortRole(StrEnum):
@@ -240,9 +244,18 @@ class GenerationResult:
     exhausted: bool
     requested_limit: int
     rule_catalog: tuple[str, ...] = field(default_factory=tuple)
+    ledger: SearchLedger = field(default_factory=lambda: _empty_ledger())
 
-    def as_dict(self) -> dict[str, object]:
-        return {
+    def as_dict(self, *, ledger: bool = False) -> dict[str, object]:
+        """Serialize the result, optionally with the search ledger.
+
+        The ledger is omitted by default so the document a consumer already
+        validates is unchanged. Readers of this report reject unknown fields,
+        which is the right behaviour and the reason a new block is asked for
+        rather than added.
+        """
+
+        payload: dict[str, object] = {
             "schema_version": 1,
             "tool": {"name": "TopologyLantern", "version": __version__},
             "spec_fingerprint": self.spec_fingerprint,
@@ -256,6 +269,17 @@ class GenerationResult:
             "rule_catalog": list(self.rule_catalog),
             "candidates": [candidate.as_dict() for candidate in self.candidates],
         }
+        if ledger:
+            payload["ledger"] = self.ledger.as_dict()
+        return payload
+
+
+def _empty_ledger() -> SearchLedger:
+    """Build the default lazily: `ledger` imports this module at runtime."""
+
+    from topology_lantern.ledger import SearchLedger
+
+    return SearchLedger()
 
 
 class LanternError(Exception):

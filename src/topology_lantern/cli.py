@@ -11,7 +11,8 @@ from typing import TextIO
 from topology_lantern._version import __version__
 from topology_lantern.benchmark import benchmark_json
 from topology_lantern.canonical import candidate_id, topology_signature
-from topology_lantern.emit import candidate_spice, result_json, result_text
+from topology_lantern.compare import diff_results, render_diff
+from topology_lantern.emit import candidate_spice, diff_json, result_json, result_text
 from topology_lantern.explain import replay_rule_ids
 from topology_lantern.search import candidate_from_state, generate_candidates
 from topology_lantern.spec import DesignSpec, _load_json_object
@@ -37,6 +38,20 @@ def _parser() -> argparse.ArgumentParser:
     generate.add_argument("--candidate", type=int, default=1, help="1-based candidate for SPICE")
     generate.add_argument("--pretty", action="store_true")
     generate.add_argument("--output")
+    generate.add_argument(
+        "--ledger",
+        action="store_true",
+        help="add the per-rule search ledger; omitted by default so the report "
+        "stays exactly what existing readers validate",
+    )
+
+    diff = commands.add_parser("diff", help="compare the topologies two specifications admit")
+    diff.add_argument("left")
+    diff.add_argument("right")
+    diff.add_argument("--limit", type=int)
+    diff.add_argument("--format", choices=("text", "json"), default="text")
+    diff.add_argument("--pretty", action="store_true")
+    diff.add_argument("--output")
 
     benchmark = commands.add_parser(
         "benchmark", help="emit a machine-readable topology-and-sizing benchmark"
@@ -242,7 +257,7 @@ def main(
         if args.command == "generate":
             result = generate_candidates(args.spec, limit=args.limit)
             if args.format == "json":
-                rendered = result_json(result, pretty=args.pretty)
+                rendered = result_json(result, pretty=args.pretty, ledger=args.ledger)
             elif args.format == "spice":
                 if not 1 <= args.candidate <= len(result.candidates):
                     raise SpecError("--candidate is outside the generated candidate range")
@@ -251,6 +266,20 @@ def main(
                 rendered = result_text(result)
             _write(rendered, args.output, output)
             return EXIT_OK if result.candidates else EXIT_EMPTY
+        if args.command == "diff":
+            left = generate_candidates(args.left, limit=args.limit)
+            right = generate_candidates(args.right, limit=args.limit)
+            comparison = diff_results(left, right)
+            rendered = (
+                diff_json(comparison, pretty=args.pretty)
+                if args.format == "json"
+                else render_diff(comparison) + "\n"
+            )
+            _write(rendered, args.output, output)
+            # A comparison that found nothing to report is not an error, so the
+            # empty status is reserved for a run that produced no topologies at
+            # all on either side.
+            return EXIT_OK if (left.candidates or right.candidates) else EXIT_EMPTY
         if args.command == "validate-spec":
             spec = DesignSpec.from_json(args.spec)
             output.write(f"valid specification: sha256:{spec.fingerprint()}\n")
