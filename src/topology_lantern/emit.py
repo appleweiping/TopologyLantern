@@ -4,14 +4,32 @@ from __future__ import annotations
 
 import json
 
+from topology_lantern.compare import ResultDiff
 from topology_lantern.explain import explain_candidate
 from topology_lantern.types import Candidate, DeviceKind, GenerationResult
 
 
-def result_json(result: GenerationResult, *, pretty: bool = False) -> str:
+def _dump(payload: object, *, pretty: bool) -> str:
     return (
         json.dumps(
-            result.as_dict(),
+            payload,
+            sort_keys=True,
+            indent=2 if pretty else None,
+            separators=None if pretty else (",", ":"),
+            ensure_ascii=False,
+        )
+        + "\n"
+    )
+
+
+def diff_json(diff: ResultDiff, *, pretty: bool = False) -> str:
+    return _dump(diff.as_dict(), pretty=pretty)
+
+
+def result_json(result: GenerationResult, *, pretty: bool = False, ledger: bool = False) -> str:
+    return (
+        json.dumps(
+            result.as_dict(ledger=ledger),
             sort_keys=True,
             indent=2 if pretty else None,
             separators=None if pretty else (",", ":"),
