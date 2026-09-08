@@ -249,7 +249,7 @@ jobs:
       - name: Generate and verify release checksums
         run: |
           cd dist
-          sha256sum *.whl *.tar.gz SBOM.spdx.json > SHA256SUMS
+          sha256sum -- ./*.whl ./*.tar.gz ./SBOM.spdx.json > SHA256SUMS
           sha256sum --check SHA256SUMS
           python -c 'import json; assert json.load(open("SBOM.spdx.json"))["spdxVersion"] == "SPDX-2.3"'
       - name: Upload verified distributions and release evidence
