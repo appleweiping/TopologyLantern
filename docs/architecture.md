@@ -22,7 +22,48 @@ without hidden state, randomness, or external tools.
 - `rank` computes structural metrics, Pareto fronts, and weighted tie-breaks.
 - `explain` renders and replays derivations.
 - `emit` serializes stable JSON, terminal summaries, and unsized SPICE skeletons.
-- `cli` exposes generation, validation, explanation, and replay with stable exits.
+- `circuit` defines the immutable versioned hierarchical circuit-graph contract.
+- `spice` performs bounded, sandboxed connectivity ingest and reference closure.
+- `layout` binds strict layout intent, detects contradictions, and emits
+  evidence-labelled inference without merging it into user intent.
+- `circuit_benchmark` pairs ingest timing with graph identity and cardinality
+  invariants.
+- `sequence_baseline` encodes verified rewrite traces, groups structural
+  augmentations by lineage, fits canonical transition counts, samples only
+  applicable rules, and reports held-out structural metrics.
+- `cli` exposes generation, validation, explanation, replay, graph ingest, and
+  layout evidence with stable exits.
+
+## Circuit evidence pipeline
+
+The SPICE path is separate from conceptual topology generation. `spice` reads
+only connectivity and opaque parameters, normalizes definitions, finds the
+explicit top's transitive reference closure, and constructs `circuit` types.
+The full graph SHA-256 excludes file locations but includes port order,
+parameters, global-net classification, connectivity, and referenced scope
+content. Device and instance source locations remain diagnostic provenance.
+Definition defaults and explicit instance overrides are preserved separately,
+with an effective map recorded without evaluating expressions.
+
+`layout` then validates declarations against graph node classes and definition
+scopes. Its inference operates only on the typed graph. Reports contain
+`user_constraints` and `inferred_constraints` as different arrays; there is no
+code path that silently promotes a candidate into declared intent. Neither
+stage evaluates expressions or invokes an external simulator or PDK.
+Inference performs device, pair-evaluation, and exact candidate-count preflight
+before constructing inferred constraints. The CLI's atomic output layer is
+shared by every command and permanently protects all input aliases even when
+explicit replacement was requested.
+
+## Rule-sequence baseline boundary
+
+The optional baseline reuses the generator's existing proof path. Its compact
+record contains rule IDs rather than a serialized graph, so recovery must pass
+normal replay and signature verification. Polarity-dual structural examples
+remain in one lineage before splitting. A checkpoint contains only audited
+bigram counts and hashes; constrained sampling cannot bypass rule predicates,
+partial checks, or final checks. Held-out metrics are structural and do not
+stand in for simulation, PDK, layout, or silicon validation.
 
 ## Immutable state
 

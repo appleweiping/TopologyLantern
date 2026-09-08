@@ -1,0 +1,182 @@
+{
+  "graph_id": "sha256:3a32bd00d3f6247582ce89862423e5962b80ae2817b155cdaa758bde7134f40c",
+  "schema": "org.topology-lantern.circuit-graph",
+  "scopes": [
+    {
+      "devices": [
+        {
+          "id": "tlg-device-d45ce4c453fa1989387b",
+          "kind": "mosfet",
+          "model": "pch",
+          "name": "mout",
+          "parameters": {"l": "180n", "w": "2u"},
+          "source": {"file": "blocks.sp", "line": 9},
+          "terminals": {
+            "b": "tlg-net-8ba8e3ad76506c0b2424",
+            "d": "tlg-net-6388dd710006a0731b8e",
+            "g": "tlg-net-c60ceb9d7a61bfd877c3",
+            "s": "tlg-net-8ba8e3ad76506c0b2424"
+          }
+        },
+        {
+          "id": "tlg-device-4f9cf772d4409804f541",
+          "kind": "mosfet",
+          "model": "pch",
+          "name": "mref",
+          "parameters": {"l": "180n", "w": "2u"},
+          "source": {"file": "blocks.sp", "line": 8},
+          "terminals": {
+            "b": "tlg-net-8ba8e3ad76506c0b2424",
+            "d": "tlg-net-c60ceb9d7a61bfd877c3",
+            "g": "tlg-net-c60ceb9d7a61bfd877c3",
+            "s": "tlg-net-8ba8e3ad76506c0b2424"
+          }
+        }
+      ],
+      "id": "tlg-scope-11e6f00d86f0b4223339",
+      "instances": [],
+      "name": "current_mirror",
+      "nets": [
+        {"id": "tlg-net-6388dd710006a0731b8e", "is_global": false, "is_port": true, "name": "out"},
+        {"id": "tlg-net-c60ceb9d7a61bfd877c3", "is_global": false, "is_port": true, "name": "ref"},
+        {"id": "tlg-net-8ba8e3ad76506c0b2424", "is_global": false, "is_port": true, "name": "vdd"}
+      ],
+      "parameters": {},
+      "ports": [
+        {"id": "tlg-port-80cdb2fd171d4f3756b6", "index": 0, "name": "ref", "net_id": "tlg-net-c60ceb9d7a61bfd877c3"},
+        {"id": "tlg-port-2bd5bd364126a971f3fd", "index": 1, "name": "out", "net_id": "tlg-net-6388dd710006a0731b8e"},
+        {"id": "tlg-port-83c53815d30e2b2e48e0", "index": 2, "name": "vdd", "net_id": "tlg-net-8ba8e3ad76506c0b2424"}
+      ]
+    },
+    {
+      "devices": [
+        {
+          "id": "tlg-device-bba007d3b31b20011381",
+          "kind": "mosfet",
+          "model": "nch",
+          "name": "mleft",
+          "parameters": {"l": "180n", "w": "4u"},
+          "source": {"file": "blocks.sp", "line": 3},
+          "terminals": {
+            "b": "tlg-net-c7e0361333ca9c45e83c",
+            "d": "tlg-net-b7da6d383f94ba1356c2",
+            "g": "tlg-net-8fcd2beac5451373d7c0",
+            "s": "tlg-net-a75ec3d7562f8890c708"
+          }
+        },
+        {
+          "id": "tlg-device-97a8e580cf217cc78575",
+          "kind": "mosfet",
+          "model": "nch",
+          "name": "mright",
+          "parameters": {"l": "180n", "w": "4u"},
+          "source": {"file": "blocks.sp", "line": 4},
+          "terminals": {
+            "b": "tlg-net-c7e0361333ca9c45e83c",
+            "d": "tlg-net-bd3d27a3f8e861fa790b",
+            "g": "tlg-net-64e7bea9bc111165e7df",
+            "s": "tlg-net-a75ec3d7562f8890c708"
+          }
+        }
+      ],
+      "id": "tlg-scope-202abd0fb75e591956fe",
+      "instances": [],
+      "name": "diff_pair",
+      "nets": [
+        {"id": "tlg-net-64e7bea9bc111165e7df", "is_global": false, "is_port": true, "name": "inn"},
+        {"id": "tlg-net-8fcd2beac5451373d7c0", "is_global": false, "is_port": true, "name": "inp"},
+        {"id": "tlg-net-bd3d27a3f8e861fa790b", "is_global": false, "is_port": true, "name": "outn"},
+        {"id": "tlg-net-b7da6d383f94ba1356c2", "is_global": false, "is_port": true, "name": "outp"},
+        {"id": "tlg-net-a75ec3d7562f8890c708", "is_global": false, "is_port": true, "name": "tail"},
+        {"id": "tlg-net-c7e0361333ca9c45e83c", "is_global": false, "is_port": true, "name": "vss"}
+      ],
+      "parameters": {},
+      "ports": [
+        {"id": "tlg-port-14c63c8253468e0c131f", "index": 0, "name": "inp", "net_id": "tlg-net-8fcd2beac5451373d7c0"},
+        {"id": "tlg-port-a4dff03a797ce81735be", "index": 1, "name": "inn", "net_id": "tlg-net-64e7bea9bc111165e7df"},
+        {"id": "tlg-port-0239dc85442ab089a7ba", "index": 2, "name": "outp", "net_id": "tlg-net-b7da6d383f94ba1356c2"},
+        {"id": "tlg-port-6dd64b6229c03b20341b", "index": 3, "name": "outn", "net_id": "tlg-net-bd3d27a3f8e861fa790b"},
+        {"id": "tlg-port-fe2da009185e8209389f", "index": 4, "name": "tail", "net_id": "tlg-net-a75ec3d7562f8890c708"},
+        {"id": "tlg-port-aa66487f83cf5ee23969", "index": 5, "name": "vss", "net_id": "tlg-net-c7e0361333ca9c45e83c"}
+      ]
+    },
+    {
+      "devices": [
+        {
+          "id": "tlg-device-5f77ce2d45b747fd283e",
+          "kind": "capacitor",
+          "model": null,
+          "name": "cc",
+          "parameters": {"value": "1p"},
+          "source": {"file": "ota.sp", "line": 7},
+          "terminals": {"n": "tlg-net-b21b169073312b60bd7b", "p": "tlg-net-89e630f044ad060f14d9"}
+        },
+        {
+          "id": "tlg-device-5f00d4bf91de5f3fb205",
+          "kind": "current_source",
+          "model": null,
+          "name": "itail",
+          "parameters": {"value": "20u"},
+          "source": {"file": "ota.sp", "line": 6},
+          "terminals": {"n": "tlg-net-c64d483e5b522028ba75", "p": "tlg-net-9db83a333f1bb5f68d9b"}
+        }
+      ],
+      "id": "tlg-scope-81a25355d7e45afc9c93",
+      "instances": [
+        {
+          "connections": {
+            "inn": "tlg-net-87d6db0772daf69322c7",
+            "inp": "tlg-net-9db015784e710819179c",
+            "outn": "tlg-net-25dca393ca22aae85c13",
+            "outp": "tlg-net-b21b169073312b60bd7b",
+            "tail": "tlg-net-9db83a333f1bb5f68d9b",
+            "vss": "tlg-net-c64d483e5b522028ba75"
+          },
+          "effective_parameters": {},
+          "id": "tlg-instance-ec642ad02c4900d830eb",
+          "name": "xdiff",
+          "parameters": {},
+          "reference": "diff_pair",
+          "reference_scope_id": "tlg-scope-202abd0fb75e591956fe",
+          "source": {"file": "ota.sp", "line": 4}
+        },
+        {
+          "connections": {
+            "out": "tlg-net-89e630f044ad060f14d9",
+            "ref": "tlg-net-b21b169073312b60bd7b",
+            "vdd": "tlg-net-b03b4febc4f7061a0a31"
+          },
+          "effective_parameters": {},
+          "id": "tlg-instance-764f06fb5080cdd1a62f",
+          "name": "xload",
+          "parameters": {},
+          "reference": "current_mirror",
+          "reference_scope_id": "tlg-scope-11e6f00d86f0b4223339",
+          "source": {"file": "ota.sp", "line": 5}
+        }
+      ],
+      "name": "ota",
+      "nets": [
+        {"id": "tlg-net-87d6db0772daf69322c7", "is_global": false, "is_port": true, "name": "inn"},
+        {"id": "tlg-net-9db015784e710819179c", "is_global": false, "is_port": true, "name": "inp"},
+        {"id": "tlg-net-b21b169073312b60bd7b", "is_global": false, "is_port": false, "name": "nleft"},
+        {"id": "tlg-net-25dca393ca22aae85c13", "is_global": false, "is_port": false, "name": "nright"},
+        {"id": "tlg-net-89e630f044ad060f14d9", "is_global": false, "is_port": true, "name": "out"},
+        {"id": "tlg-net-9db83a333f1bb5f68d9b", "is_global": false, "is_port": false, "name": "tail"},
+        {"id": "tlg-net-b03b4febc4f7061a0a31", "is_global": false, "is_port": true, "name": "vdd"},
+        {"id": "tlg-net-c64d483e5b522028ba75", "is_global": false, "is_port": true, "name": "vss"}
+      ],
+      "parameters": {},
+      "ports": [
+        {"id": "tlg-port-15aa90d94e8001934810", "index": 0, "name": "inp", "net_id": "tlg-net-9db015784e710819179c"},
+        {"id": "tlg-port-5df44ba3da0efb9b2e95", "index": 1, "name": "inn", "net_id": "tlg-net-87d6db0772daf69322c7"},
+        {"id": "tlg-port-92f6ca53285fd5c51a27", "index": 2, "name": "out", "net_id": "tlg-net-89e630f044ad060f14d9"},
+        {"id": "tlg-port-81ca9cc7f39b7020982e", "index": 3, "name": "vdd", "net_id": "tlg-net-b03b4febc4f7061a0a31"},
+        {"id": "tlg-port-613dc0d924b1526cab4a", "index": 4, "name": "vss", "net_id": "tlg-net-c64d483e5b522028ba75"}
+      ]
+    }
+  ],
+  "sources": ["ota.sp", "blocks.sp"],
+  "top": "ota",
+  "version": 1
+}

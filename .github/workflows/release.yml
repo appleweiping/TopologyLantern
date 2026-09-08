@@ -30,6 +30,9 @@ jobs:
           persist-credentials: false
       - name: Verify tag commit is reachable from main
         run: |
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile "$GITHUB_WORKSPACE/.github/allowed_signers"
+          git verify-tag "$GITHUB_REF_NAME"
           git fetch --no-tags origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
             echo "release commit is not reachable from origin/main" >&2
@@ -126,13 +129,30 @@ jobs:
               "benchmarks/manifest.json",
               "benchmarks/sky130-common-source.json",
               "docs/schemas/analog-sizing-benchmark-1.schema.json",
+              "docs/schemas/circuit-graph-1.schema.json",
+              "docs/schemas/layout-constraint-report-1.schema.json",
+              "docs/schemas/layout-constraints-1.schema.json",
+              "docs/schemas/rule-sequence-checkpoint-1.schema.json",
+              "docs/schemas/rule-sequence-evaluation-1.schema.json",
+              "docs/schemas/rule-sequence-samples-1.schema.json",
+              "examples/circuits/device_families.sp",
               "examples/sky130_common_source.json",
           }
           if missing := required_source - source_names:
               raise SystemExit(f"source distribution is missing: {sorted(missing)}")
           with zipfile.ZipFile(wheels[0]) as archive:
               wheel_names = set(archive.namelist())
-          required_wheel = {"topology_lantern/_version.py", "topology_lantern/py.typed"}
+          required_wheel = {
+              "topology_lantern/_version.py",
+              "topology_lantern/py.typed",
+              "topology_lantern/schemas/analog-sizing-benchmark-1.schema.json",
+              "topology_lantern/schemas/circuit-graph-1.schema.json",
+              "topology_lantern/schemas/layout-constraint-report-1.schema.json",
+              "topology_lantern/schemas/layout-constraints-1.schema.json",
+              "topology_lantern/schemas/rule-sequence-checkpoint-1.schema.json",
+              "topology_lantern/schemas/rule-sequence-evaluation-1.schema.json",
+              "topology_lantern/schemas/rule-sequence-samples-1.schema.json",
+          }
           if missing := required_wheel - wheel_names:
               raise SystemExit(f"wheel is missing: {sorted(missing)}")
           PY
@@ -141,24 +161,98 @@ jobs:
           python -m venv .release-smoke
           .release-smoke/bin/python -m pip install --disable-pip-version-check --no-deps dist/*.whl
           .release-smoke/bin/python -I - <<'PY'
+          import json
           import subprocess
+          import tempfile
+          from importlib.resources import files
           from importlib.metadata import version
+          from pathlib import Path
 
           import topology_lantern
 
           expected = version("topology-lantern")
           if topology_lantern.__version__ != expected:
               raise SystemExit("runtime and distribution versions differ")
+          cli = str(Path(".release-smoke/bin/topology-lantern").resolve())
           completed = subprocess.run(
-              [".release-smoke/bin/topology-lantern", "--version"],
+              [cli, "--version"],
               check=True,
               capture_output=True,
               text=True,
           )
           if completed.stdout.strip() != f"topology-lantern {expected}":
               raise SystemExit("CLI version does not match distribution metadata")
+          schema_root = files("topology_lantern").joinpath("schemas")
+          for name in (
+              "analog-sizing-benchmark-1.schema.json",
+              "circuit-graph-1.schema.json",
+              "layout-constraint-report-1.schema.json",
+              "layout-constraints-1.schema.json",
+              "rule-sequence-checkpoint-1.schema.json",
+              "rule-sequence-evaluation-1.schema.json",
+              "rule-sequence-samples-1.schema.json",
+          ):
+              json.loads(schema_root.joinpath(name).read_text(encoding="utf-8"))
+          with tempfile.TemporaryDirectory() as directory:
+              netlist = Path(directory, "smoke.sp")
+              netlist.write_text("r1 a b 1k\n.end\n", encoding="utf-8")
+              ingested = subprocess.run(
+                  [cli, "ingest-spice", str(netlist)],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+                  cwd=directory,
+              )
+              graph = json.loads(ingested.stdout)
+              if graph["schema"] != "org.topology-lantern.circuit-graph":
+                  raise SystemExit("isolated installed CLI produced an invalid graph contract")
+              if len(graph["scopes"]) != 1 or sum(len(scope["devices"]) for scope in graph["scopes"]) != 1:
+                  raise SystemExit("isolated installed CLI produced an unexpected graph shape")
+              training = Path(directory, "training.json")
+              heldout = Path(directory, "heldout.json")
+              training.write_text(
+                  json.dumps({"name": "training", "supply_voltage": 1.2}), encoding="utf-8"
+              )
+              heldout.write_text(
+                  json.dumps({"name": "heldout", "supply_voltage": 2.4}), encoding="utf-8"
+              )
+              checkpoint = Path(directory, "checkpoint.json")
+              subprocess.run(
+                  [cli, "baseline-train", str(training), "--heldout-spec", str(heldout),
+                   "--candidate-limit", "1", "--output", str(checkpoint)],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+                  cwd=directory,
+              )
+              sampled = subprocess.run(
+                  [cli, "baseline-sample", str(checkpoint), str(heldout), "--draws", "1"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+                  cwd=directory,
+              )
+              sample_report = json.loads(sampled.stdout)
+              if sample_report["requested_draws"] != 1 or len(sample_report["draws"]) != 1:
+                  raise SystemExit("isolated installed baseline CLI violated its draw budget")
+              valid_draws = sum(draw["rejection"] is None for draw in sample_report["draws"])
+              if sample_report["valid_draws"] != valid_draws:
+                  raise SystemExit("isolated installed baseline CLI misreported draw accounting")
           PY
-      - name: Upload verified distributions
+      - name: Generate SPDX software bill of materials
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: dist
+          format: spdx-json
+          output-file: dist/SBOM.spdx.json
+          upload-artifact: false
+      - name: Generate and verify release checksums
+        run: |
+          cd dist
+          sha256sum *.whl *.tar.gz SBOM.spdx.json > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          python -c 'import json; assert json.load(open("SBOM.spdx.json"))["spdxVersion"] == "SPDX-2.3"'
+      - name: Upload verified distributions and release evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-distributions

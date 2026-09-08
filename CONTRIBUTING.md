@@ -18,6 +18,12 @@ python -m build
 Runtime dependencies require prior discussion because deterministic offline
 operation is part of the project contract.
 
+Every pull-request commit must carry a Developer Certificate of Origin
+`Signed-off-by` trailer that exactly matches its Git author name and email.
+Create it with `git commit -s`; if you amend or rebase commits, preserve the
+matching trailer on each rewritten commit. CI checks the complete PR commit
+range rather than only the tip commit.
+
 ## Rule contributions
 
 Open an issue describing the obligation, conceptual circuit family, explicit

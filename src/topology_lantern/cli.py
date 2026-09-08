@@ -1,9 +1,12 @@
-"""Command-line interface for generation, inspection, and trace replay."""
+"""Command-line interface for generation, circuit evidence, and trace replay."""
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+import tempfile
+import unicodedata
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TextIO
@@ -11,11 +14,28 @@ from typing import TextIO
 from topology_lantern._version import __version__
 from topology_lantern.benchmark import benchmark_json
 from topology_lantern.canonical import candidate_id, topology_signature
+from topology_lantern.circuit import CircuitGraph, circuit_graph_json
 from topology_lantern.compare import diff_results, render_diff
 from topology_lantern.emit import candidate_spice, diff_json, result_json, result_text
 from topology_lantern.explain import replay_rule_ids
+from topology_lantern.layout import (
+    layout_inference_report,
+    layout_report_json,
+    load_layout_constraints,
+)
 from topology_lantern.search import candidate_from_state, generate_candidates
+from topology_lantern.sequence_baseline import (
+    build_sequence_examples,
+    evaluate_sequence_baseline,
+    evaluation_report_json,
+    load_sequence_checkpoint,
+    sample_report_json,
+    sample_sequence_baseline,
+    sequence_checkpoint_json,
+    train_sequence_baseline,
+)
 from topology_lantern.spec import DesignSpec, _load_json_object
+from topology_lantern.spice import load_spice
 from topology_lantern.types import LanternError, ReplayError, SpecError
 
 EXIT_OK = 0
@@ -26,7 +46,9 @@ EXIT_INPUT = 3
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="topology-lantern",
-        description="Generate bounded, explainable conceptual analog topology candidates.",
+        description=(
+            "Generate bounded analog topology candidates and inspect typed circuit evidence."
+        ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -38,6 +60,7 @@ def _parser() -> argparse.ArgumentParser:
     generate.add_argument("--candidate", type=int, default=1, help="1-based candidate for SPICE")
     generate.add_argument("--pretty", action="store_true")
     generate.add_argument("--output")
+    generate.add_argument("--force", action="store_true", help="atomically replace output")
     generate.add_argument(
         "--ledger",
         action="store_true",
@@ -52,6 +75,7 @@ def _parser() -> argparse.ArgumentParser:
     diff.add_argument("--format", choices=("text", "json"), default="text")
     diff.add_argument("--pretty", action="store_true")
     diff.add_argument("--output")
+    diff.add_argument("--force", action="store_true", help="atomically replace output")
 
     benchmark = commands.add_parser(
         "benchmark", help="emit a machine-readable topology-and-sizing benchmark"
@@ -60,26 +84,146 @@ def _parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--limit", type=int)
     benchmark.add_argument("--pretty", action="store_true")
     benchmark.add_argument("--output")
+    benchmark.add_argument("--force", action="store_true", help="atomically replace output")
 
     validate = commands.add_parser("validate-spec", help="validate and fingerprint a spec")
     validate.add_argument("spec")
+    validate.add_argument("--output")
+    validate.add_argument("--force", action="store_true", help="atomically replace output")
 
     explain = commands.add_parser("explain", help="explain one candidate from a JSON report")
     explain.add_argument("report")
     explain.add_argument("candidate_id")
+    explain.add_argument("--output")
+    explain.add_argument("--force", action="store_true", help="atomically replace output")
 
     replay = commands.add_parser("replay", help="replay one report trace against its spec")
     replay.add_argument("spec")
     replay.add_argument("report")
     replay.add_argument("candidate_id")
+    replay.add_argument("--output")
+    replay.add_argument("--force", action="store_true", help="atomically replace output")
+
+    ingest = commands.add_parser(
+        "ingest-spice", help="convert a bounded hierarchical SPICE subset to a typed graph"
+    )
+    ingest.add_argument("netlist")
+    ingest.add_argument("--top", help="explicit top subcircuit; inferred when unambiguous")
+    ingest.add_argument("--pretty", action="store_true")
+    ingest.add_argument("--output")
+    ingest.add_argument("--force", action="store_true", help="atomically replace output")
+
+    layout = commands.add_parser(
+        "layout-evidence",
+        help="validate layout intent and emit separate evidence-backed candidates",
+    )
+    layout.add_argument("netlist")
+    layout.add_argument("--top", help="explicit top subcircuit; inferred when unambiguous")
+    layout.add_argument("--constraints", help="optional version-1 user constraint JSON")
+    layout.add_argument("--pretty", action="store_true")
+    layout.add_argument("--output")
+    layout.add_argument("--force", action="store_true", help="atomically replace output")
+
+    train = commands.add_parser(
+        "baseline-train",
+        help="fit an auditable rule-bigram baseline (not a trained ML model)",
+    )
+    train.add_argument("specs", nargs="+", help="training design specifications")
+    train.add_argument(
+        "--heldout-spec",
+        action="append",
+        default=[],
+        help="held-out spec used only for lineage-leakage validation; repeatable",
+    )
+    train.add_argument("--candidate-limit", type=int)
+    train.add_argument("--augment-polarity", action="store_true")
+    train.add_argument("--pretty", action="store_true")
+    train.add_argument("--output")
+    train.add_argument("--force", action="store_true", help="atomically replace output")
+
+    sample = commands.add_parser(
+        "baseline-sample",
+        help="sample replayable sequences through structural constraints",
+    )
+    sample.add_argument("checkpoint")
+    sample.add_argument("spec")
+    sample.add_argument("--draws", type=int, default=16)
+    sample.add_argument("--seed", type=int, default=0)
+    sample.add_argument("--pretty", action="store_true")
+    sample.add_argument("--output")
+    sample.add_argument("--force", action="store_true", help="atomically replace output")
+
+    evaluate = commands.add_parser(
+        "baseline-evaluate",
+        help="measure held-out structural sequence metrics with leakage checks",
+    )
+    evaluate.add_argument("checkpoint")
+    evaluate.add_argument("specs", nargs="+", help="held-out design specifications")
+    evaluate.add_argument("--candidate-limit", type=int)
+    evaluate.add_argument("--draws-per-spec", type=int, default=16)
+    evaluate.add_argument("--seed", type=int, default=0)
+    evaluate.add_argument("--augment-polarity", action="store_true")
+    evaluate.add_argument("--pretty", action="store_true")
+    evaluate.add_argument("--output")
+    evaluate.add_argument("--force", action="store_true", help="atomically replace output")
     return parser
 
 
-def _write(text: str, destination: str | None, stdout: TextIO) -> None:
-    if destination:
-        Path(destination).write_text(text, encoding="utf-8", newline="\n")
-    else:
+def _path_key(path: Path) -> str:
+    return os.path.normcase(str(path.resolve(strict=False)))
+
+
+def _paths_alias(left: Path, right: Path) -> bool:
+    if _path_key(left) == _path_key(right):
+        return True
+    try:
+        return left.exists() and right.exists() and os.path.samefile(left, right)
+    except OSError:
+        return False
+
+
+def _write(
+    text: str,
+    destination: str | None,
+    stdout: TextIO,
+    *,
+    protected_paths: Sequence[str | Path] = (),
+    force: bool = False,
+) -> None:
+    if destination is None:
+        if force:
+            raise SpecError("--force requires --output")
         stdout.write(text)
+        return
+    output = Path(destination)
+    for protected in protected_paths:
+        if _paths_alias(output, Path(protected)):
+            raise SpecError(f"output aliases protected input: {protected}")
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".topology-lantern-", suffix=".tmp", dir=output.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if force:
+            os.replace(temporary, output)
+        else:
+            try:
+                os.link(temporary, output)
+            except FileExistsError as error:
+                raise SpecError(
+                    f"output already exists; use --force to replace: {output}"
+                ) from error
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _graph_source_paths(netlist: str, graph: CircuitGraph) -> tuple[Path, ...]:
+    root = Path(netlist).resolve().parent
+    return tuple(root / source for source in graph.sources)
 
 
 def _load_report(path: str) -> Mapping[str, object]:
@@ -187,6 +331,15 @@ def _report_text(value: object, field: str) -> str:
             rendered.append(escapes[character])
         elif codepoint < 32 or 127 <= codepoint <= 159:
             rendered.append(f"\\x{codepoint:02x}")
+        elif (
+            not character.isprintable()
+            or unicodedata.category(character) in {"Cc", "Cf", "Cs"}
+            or unicodedata.bidirectional(character)
+            in {"BN", "LRE", "LRI", "LRO", "PDF", "PDI", "RLE", "RLI", "RLO", "FSI"}
+        ):
+            width = 4 if codepoint <= 0xFFFF else 8
+            prefix = "u" if width == 4 else "U"
+            rendered.append(f"\\{prefix}{codepoint:0{width}x}")
         else:
             rendered.append(character)
     return "".join(rendered)
@@ -254,6 +407,94 @@ def main(
     errors = stderr or sys.stderr
     try:
         args = _parser().parse_args(argv)
+        if args.command == "ingest-spice":
+            graph = load_spice(args.netlist, top=args.top)
+            _write(
+                circuit_graph_json(graph, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=_graph_source_paths(args.netlist, graph),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "layout-evidence":
+            graph = load_spice(args.netlist, top=args.top)
+            constraints = (
+                load_layout_constraints(args.constraints, graph) if args.constraints else None
+            )
+            evidence_report = layout_inference_report(graph, constraints)
+            _write(
+                layout_report_json(evidence_report, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(
+                    *_graph_source_paths(args.netlist, graph),
+                    *((args.constraints,) if args.constraints else ()),
+                ),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "baseline-train":
+            training = build_sequence_examples(
+                args.specs,
+                augment_polarity=args.augment_polarity,
+                limit=args.candidate_limit,
+            )
+            heldout = (
+                build_sequence_examples(
+                    args.heldout_spec,
+                    augment_polarity=args.augment_polarity,
+                    limit=args.candidate_limit,
+                )
+                if args.heldout_spec
+                else ()
+            )
+            checkpoint = train_sequence_baseline(training, heldout=heldout)
+            _write(
+                sequence_checkpoint_json(checkpoint, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(*args.specs, *args.heldout_spec),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "baseline-sample":
+            checkpoint = load_sequence_checkpoint(args.checkpoint)
+            sample_report = sample_sequence_baseline(
+                checkpoint,
+                args.spec,
+                draws=args.draws,
+                seed=args.seed,
+            )
+            _write(
+                sample_report_json(sample_report, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(args.checkpoint, args.spec),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "baseline-evaluate":
+            checkpoint = load_sequence_checkpoint(args.checkpoint)
+            heldout = build_sequence_examples(
+                args.specs,
+                augment_polarity=args.augment_polarity,
+                limit=args.candidate_limit,
+            )
+            evaluation_report = evaluate_sequence_baseline(
+                checkpoint,
+                heldout,
+                draws_per_spec=args.draws_per_spec,
+                seed=args.seed,
+            )
+            _write(
+                evaluation_report_json(evaluation_report, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(args.checkpoint, *args.specs),
+                force=args.force,
+            )
+            return EXIT_OK
         if args.command == "generate":
             result = generate_candidates(args.spec, limit=args.limit)
             if args.format == "json":
@@ -264,7 +505,13 @@ def main(
                 rendered = candidate_spice(result.candidates[args.candidate - 1])
             else:
                 rendered = result_text(result)
-            _write(rendered, args.output, output)
+            _write(
+                rendered,
+                args.output,
+                output,
+                protected_paths=(args.spec,),
+                force=args.force,
+            )
             return EXIT_OK if result.candidates else EXIT_EMPTY
         if args.command == "diff":
             left = generate_candidates(args.left, limit=args.limit)
@@ -275,23 +522,47 @@ def main(
                 if args.format == "json"
                 else render_diff(comparison) + "\n"
             )
-            _write(rendered, args.output, output)
+            _write(
+                rendered,
+                args.output,
+                output,
+                protected_paths=(args.left, args.right),
+                force=args.force,
+            )
             # A comparison that found nothing to report is not an error, so the
             # empty status is reserved for a run that produced no topologies at
             # all on either side.
             return EXIT_OK if (left.candidates or right.candidates) else EXIT_EMPTY
         if args.command == "validate-spec":
             spec = DesignSpec.from_json(args.spec)
-            output.write(f"valid specification: sha256:{spec.fingerprint()}\n")
+            _write(
+                f"valid specification: sha256:{spec.fingerprint()}\n",
+                args.output,
+                output,
+                protected_paths=(args.spec,),
+                force=args.force,
+            )
             return EXIT_OK
         if args.command == "benchmark":
             spec = DesignSpec.from_json(args.spec)
             result = generate_candidates(spec, limit=args.limit)
-            _write(benchmark_json(spec, result, pretty=args.pretty), args.output, output)
+            _write(
+                benchmark_json(spec, result, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(args.spec,),
+                force=args.force,
+            )
             return EXIT_OK
         if args.command == "explain":
             report = _load_report(args.report)
-            output.write(_explain_mapping(_candidate_mapping(report, args.candidate_id)))
+            _write(
+                _explain_mapping(_candidate_mapping(report, args.candidate_id)),
+                args.output,
+                output,
+                protected_paths=(args.report,),
+                force=args.force,
+            )
             return EXIT_OK
         if args.command == "replay":
             spec = DesignSpec.from_json(args.spec)
@@ -330,7 +601,13 @@ def main(
             regenerated = generate_candidates(spec, limit=requested_limit)
             if regenerated.as_dict() != dict(report):
                 raise ReplayError("report does not match the regenerated search result")
-            output.write(f"replay core evidence verified: {args.candidate_id} sha256:{actual}\n")
+            _write(
+                f"replay core evidence verified: {args.candidate_id} sha256:{actual}\n",
+                args.output,
+                output,
+                protected_paths=(args.spec, args.report),
+                force=args.force,
+            )
             return EXIT_OK
     except (LanternError, OSError, UnicodeError, ValueError) as exc:
         errors.write(f"topology-lantern: {exc}\n")

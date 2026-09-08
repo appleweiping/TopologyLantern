@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-07
+
+### Added
+
+- A resource-bounded, dependency-free hierarchical SPICE connectivity ingest
+  with normalized primitives, ports and nets, explicit reference closure,
+  positional instance binding, global-net identity, deterministic node IDs,
+  and a semantic SHA-256 graph identity.
+- Version-1 circuit-graph, layout-constraint, and layout-evidence JSON schemas,
+  plus strict runtime node binding and contradiction checks for symmetry,
+  common-centroid, matching, alignment, order, keepout, and net-priority intent.
+- Conservative current-mirror, differential-pair, and parallel-finger layout
+  candidates with confidence and topology evidence. Inference and user intent
+  remain separate in both the typed API and serialized report.
+- `ingest-spice` and `layout-evidence` CLI commands, a Python API, synthetic
+  current-mirror/differential-pair/hierarchical-OTA corpus, checked-in golden
+  graph, resource/error/property tests, and a repeatable ingest benchmark.
+- Independent per-file and cumulative include read bounds; terminal `.end`
+  semantics; NFC/control/bidi identifier defenses; source file/line provenance;
+  and case-insensitive `PARAMS:` defaults plus explicit/effective overrides.
+- Preflight device, pair-evaluation, and inferred-candidate caps; full public
+  constraint revalidation; reverse-order semantic normalization; and bounded
+  report arrays.
+- Atomic no-clobber output for every CLI command with explicit `--force` and
+  permanent input/constraint/spec/report alias protection. Versioned schemas
+  are included in the wheel.
+- A compact replay-verified `tlrs1` rule sequence, polarity-dual structural
+  augmentation with lineage-safe splitting, digest-bound bigram checkpoint,
+  exact-budget constraint-guided sampling, and held-out validity/exact-match/
+  coverage reports. This is labelled throughout as a deterministic statistical
+  baseline rather than a trained ML or analog-performance model.
+- Author-matching DCO verification for every pull-request commit,
+  cryptographic verification of signed release tags against the repository
+  trust file, and pinned-tool SPDX 2.3 SBOM plus verified SHA-256 release
+  checksums alongside GitHub build provenance attestations.
+- Bounded, NFC-normalized in-memory source labels and terminal-safe escaping of
+  Unicode format, bidi-control, and surrogate characters in stored report
+  explanations.
+
 ## 0.3.0 - 2026-09-07
 
 ### Added

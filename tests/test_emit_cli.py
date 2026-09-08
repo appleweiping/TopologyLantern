@@ -154,6 +154,31 @@ def test_cli_writes_output_file_without_stdout(tmp_path: Path) -> None:
     assert len(json.loads(destination.read_text(encoding="utf-8"))["candidates"]) == 2
 
 
+def test_every_spec_and_report_input_is_a_protected_output_alias(tmp_path: Path) -> None:
+    spec_path, report_path, report = generate_report(tmp_path)
+    candidate_id = report["candidates"][0]["candidate_id"]
+    commands = [
+        (["generate", str(spec_path)], spec_path),
+        (["diff", str(spec_path), str(spec_path)], spec_path),
+        (["benchmark", str(spec_path)], spec_path),
+        (["validate-spec", str(spec_path)], spec_path),
+        (["explain", str(report_path), candidate_id], report_path),
+        (["replay", str(spec_path), str(report_path), candidate_id], report_path),
+    ]
+    originals = {path: path.read_bytes() for _command, path in commands}
+    for command, protected in commands:
+        errors = io.StringIO()
+        assert (
+            main(
+                [*command, "--output", str(protected), "--force"],
+                stderr=errors,
+            )
+            == EXIT_INPUT
+        )
+        assert "aliases protected input" in errors.getvalue()
+        assert protected.read_bytes() == originals[protected]
+
+
 def generate_report(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
     spec_path = write_spec(tmp_path)
     report_path = tmp_path / "report.json"
@@ -264,8 +289,8 @@ def test_cli_explain_escapes_untrusted_terminal_controls(tmp_path: Path) -> None
     _, report_path, report = generate_report(tmp_path)
     candidate = report["candidates"][0]
     candidate_id = candidate["candidate_id"]
-    candidate["trace"][0]["summary"] = "清屏\u001b[2J\nforged"
-    candidate["trace"][0]["rationale"] = "line\r\nnext\u0085"
+    candidate["trace"][0]["summary"] = "清屏\u001b[2J\nforged\u202eTXT\u2066END"
+    candidate["trace"][0]["rationale"] = "line\r\nnext\u0085\ud800"
     candidate["violations"] = [
         {
             "code": "FAKE\u001b",
@@ -279,11 +304,14 @@ def test_cli_explain_escapes_untrusted_terminal_controls(tmp_path: Path) -> None
 
     assert main(["explain", str(report_path), candidate_id], stdout=output) == EXIT_OK
     rendered = output.getvalue()
-    assert "清屏\\x1b[2J\\nforged" in rendered
-    assert "line\\r\\nnext\\x85" in rendered
+    assert "清屏\\x1b[2J\\nforged\\u202eTXT\\u2066END" in rendered
+    assert "line\\r\\nnext\\x85\\ud800" in rendered
     assert "message\\nforged" in rendered
     assert "\u001b" not in rendered
     assert "\u0085" not in rendered
+    assert "\u202e" not in rendered
+    assert "\u2066" not in rendered
+    assert "\ud800" not in rendered
 
 
 @pytest.mark.parametrize("field", ["summary", "rationale"])

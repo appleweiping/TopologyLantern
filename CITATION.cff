@@ -2,14 +2,14 @@ cff-version: 1.2.0
 message: "If TopologyLantern supports your work, please cite this software."
 type: software
 title: "TopologyLantern"
-abstract: "Explainable, deterministic generation of analog topology candidates."
+abstract: "Deterministic analog topology generation, circuit graphs, and layout evidence."
 authors:
   - family-names: "Yan"
     given-names: "Weiping"
 repository-code: "https://github.com/appleweiping/TopologyLantern"
 url: "https://github.com/appleweiping/TopologyLantern"
 license: MIT
-version: 0.3.0
+version: 0.4.0
 date-released: 2026-09-07
 keywords:
   - analog topology
