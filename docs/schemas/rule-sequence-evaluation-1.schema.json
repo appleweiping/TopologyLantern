@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/appleweiping/TopologyLantern/blob/main/docs/schemas/rule-sequence-evaluation-1.schema.json",
+  "title": "TopologyLantern held-out rule-sequence baseline metrics version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "version", "model_kind", "checkpoint_sha256", "leakage_check",
+    "heldout_lineages", "heldout_specifications", "heldout_sequences", "requested_draws",
+    "valid_draws", "exact_sequence_draws", "matched_heldout_sequences",
+    "constraint_valid_rate", "exact_sequence_rate", "heldout_sequence_coverage", "disclaimer"
+  ],
+  "properties": {
+    "schema": {"const": "org.topology-lantern.rule-sequence-evaluation"},
+    "version": {"const": 1},
+    "model_kind": {"const": "laplace-bigram-rule-baseline"},
+    "checkpoint_sha256": {"$ref": "#/$defs/digest"},
+    "leakage_check": {"const": "passed_lineage_disjoint"},
+    "heldout_lineages": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "heldout_specifications": {"type": "integer", "minimum": 1, "maximum": 256},
+    "heldout_sequences": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "requested_draws": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "valid_draws": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "exact_sequence_draws": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "matched_heldout_sequences": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "constraint_valid_rate": {"$ref": "#/$defs/rate"},
+    "exact_sequence_rate": {"$ref": "#/$defs/rate"},
+    "heldout_sequence_coverage": {"$ref": "#/$defs/rate"},
+    "disclaimer": {"const": "Held-out structural sequence metrics only; no simulated performance claim."}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rate": {"type": "number", "minimum": 0, "maximum": 1}
+  }
+}

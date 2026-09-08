@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/appleweiping/TopologyLantern/blob/main/docs/schemas/rule-sequence-samples-1.schema.json",
+  "title": "TopologyLantern constrained rule-sequence samples version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "version", "model_kind", "checkpoint_sha256", "spec_fingerprint", "seed",
+    "requested_draws", "valid_draws", "unique_sequences", "draws", "disclaimer"
+  ],
+  "properties": {
+    "schema": {"const": "org.topology-lantern.rule-sequence-samples"},
+    "version": {"const": 1},
+    "model_kind": {"const": "laplace-bigram-rule-baseline"},
+    "checkpoint_sha256": {"$ref": "#/$defs/digest"},
+    "spec_fingerprint": {"$ref": "#/$defs/digest"},
+    "seed": {"type": "integer", "minimum": -9223372036854775808, "maximum": 9223372036854775807},
+    "requested_draws": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "valid_draws": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "unique_sequences": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "draws": {
+      "type": "array", "minItems": 1, "maxItems": 10000,
+      "items": {"$ref": "#/$defs/draw"}
+    },
+    "disclaimer": {"const": "Deterministic statistical baseline; not an analog-performance or trained ML model."}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "draw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["draw_index", "compact_sequence", "candidate_id", "rejection"],
+      "properties": {
+        "draw_index": {"type": "integer", "minimum": 0, "maximum": 9999},
+        "compact_sequence": {"type": ["string", "null"], "minLength": 1, "maxLength": 8192},
+        "candidate_id": {"type": ["string", "null"], "pattern": "^TL-[0-9a-f]{12}$"},
+        "rejection": {
+          "type": ["string", "null"],
+          "enum": [null, "depth_limit", "partial_constraint", "no_applicable_rule", "final_constraint"]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "compact_sequence": {"type": "string"},
+            "candidate_id": {"type": "string"},
+            "rejection": {"type": "null"}
+          }
+        },
+        {
+          "properties": {
+            "compact_sequence": {"type": "null"},
+            "candidate_id": {"type": "null"},
+            "rejection": {"type": "string"}
+          }
+        }
+      ]
+    }
+  }
+}

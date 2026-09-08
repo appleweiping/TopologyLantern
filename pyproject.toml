@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "topology-lantern"
-version = "0.3.0"
-description = "Explainable deterministic generation of analog topology candidates"
+version = "0.4.0"
+description = "Deterministic analog topology generation, circuit graphs, and layout evidence"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -50,6 +50,9 @@ include = ["/src", "/tests", "/examples", "/benchmarks", "/docs", "/*.md", "/LIC
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/topology_lantern"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"docs/schemas" = "topology_lantern/schemas"
 
 [tool.pytest.ini_options]
 addopts = [

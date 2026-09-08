@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/appleweiping/TopologyLantern/blob/main/docs/schemas/circuit-graph-1.schema.json",
+  "title": "TopologyLantern circuit graph version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "graph_id", "top", "sources", "scopes"],
+  "properties": {
+    "schema": {"const": "org.topology-lantern.circuit-graph"},
+    "version": {"const": 1},
+    "graph_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "top": {"type": "string", "minLength": 1},
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 513,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/scope"}
+    }
+  },
+  "$defs": {
+    "nodeId": {"type": "string", "pattern": "^tlg-[a-z]+-[0-9a-f]{20}$"},
+    "stringMap": {
+      "type": "object",
+      "maxProperties": 4096,
+      "additionalProperties": {"type": "string"}
+    },
+    "terminalMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "a": {"$ref": "#/$defs/nodeId"},
+        "b": {"$ref": "#/$defs/nodeId"},
+        "c": {"$ref": "#/$defs/nodeId"},
+        "d": {"$ref": "#/$defs/nodeId"},
+        "e": {"$ref": "#/$defs/nodeId"},
+        "g": {"$ref": "#/$defs/nodeId"},
+        "n": {"$ref": "#/$defs/nodeId"},
+        "p": {"$ref": "#/$defs/nodeId"},
+        "s": {"$ref": "#/$defs/nodeId"}
+      }
+    },
+    "sourceLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "line"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "line": {"type": "integer", "minimum": 1}
+      }
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "index", "net_id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nodeId"},
+        "name": {"type": "string", "minLength": 1},
+        "index": {"type": "integer", "minimum": 0},
+        "net_id": {"$ref": "#/$defs/nodeId"}
+      }
+    },
+    "net": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "is_port", "is_global"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nodeId"},
+        "name": {"type": "string", "minLength": 1},
+        "is_port": {"type": "boolean"},
+        "is_global": {"type": "boolean"}
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind", "terminals", "model", "parameters", "source"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nodeId"},
+        "name": {"type": "string", "minLength": 1},
+        "kind": {
+          "enum": ["mosfet", "resistor", "capacitor", "current_source", "voltage_source", "diode", "bjt"]
+        },
+        "terminals": {"$ref": "#/$defs/terminalMap"},
+        "model": {"type": ["string", "null"]},
+        "parameters": {"$ref": "#/$defs/stringMap"},
+        "source": {"$ref": "#/$defs/sourceLocation"}
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "kind": {"const": "mosfet"},
+                "model": {"type": "string"},
+                "terminals": {"required": ["d", "g", "s", "b"], "maxProperties": 4}
+              }
+            },
+            {
+              "properties": {
+                "kind": {"enum": ["resistor", "capacitor", "current_source", "voltage_source"]},
+                "model": {"type": "null"},
+                "terminals": {"required": ["p", "n"], "maxProperties": 2}
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "diode"},
+                "model": {"type": "string"},
+                "terminals": {"required": ["a", "c"], "maxProperties": 2}
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "bjt"},
+                "model": {"type": "string"},
+                "terminals": {"required": ["c", "b", "e"], "maxProperties": 3}
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "reference", "reference_scope_id", "connections", "parameters", "effective_parameters", "source"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nodeId"},
+        "name": {"type": "string", "minLength": 1},
+        "reference": {"type": "string", "minLength": 1},
+        "reference_scope_id": {"$ref": "#/$defs/nodeId"},
+        "connections": {"$ref": "#/$defs/stringMap", "minProperties": 1},
+        "parameters": {"$ref": "#/$defs/stringMap"},
+        "effective_parameters": {"$ref": "#/$defs/stringMap"},
+        "source": {"$ref": "#/$defs/sourceLocation"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "ports", "parameters", "nets", "devices", "instances"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nodeId"},
+        "name": {"type": "string", "minLength": 1},
+        "ports": {"type": "array", "maxItems": 16384, "uniqueItems": true, "items": {"$ref": "#/$defs/port"}},
+        "parameters": {"$ref": "#/$defs/stringMap"},
+        "nets": {"type": "array", "maxItems": 250000, "uniqueItems": true, "items": {"$ref": "#/$defs/net"}},
+        "devices": {"type": "array", "maxItems": 50000, "uniqueItems": true, "items": {"$ref": "#/$defs/device"}},
+        "instances": {"type": "array", "maxItems": 50000, "uniqueItems": true, "items": {"$ref": "#/$defs/instance"}}
+      }
+    }
+  }
+}

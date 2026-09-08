@@ -1,0 +1,64 @@
+{
+  "schema": "org.topology-lantern.layout-constraints",
+  "version": 1,
+  "graph_id": "sha256:3a32bd00d3f6247582ce89862423e5962b80ae2817b155cdaa758bde7134f40c",
+  "constraints": [
+    {
+      "id": "input-pair-symmetry",
+      "kind": "symmetry",
+      "subjects": [
+        "tlg-device-bba007d3b31b20011381",
+        "tlg-device-97a8e580cf217cc78575"
+      ],
+      "axis": "vertical"
+    },
+    {
+      "id": "input-pair-centroid",
+      "kind": "common_centroid",
+      "groups": [
+        ["tlg-device-bba007d3b31b20011381"],
+        ["tlg-device-97a8e580cf217cc78575"]
+      ],
+      "axis": "both"
+    },
+    {
+      "id": "input-pair-match",
+      "kind": "matching",
+      "subjects": [
+        "tlg-device-bba007d3b31b20011381",
+        "tlg-device-97a8e580cf217cc78575"
+      ],
+      "tolerance": 0.01
+    },
+    {
+      "id": "block-row",
+      "kind": "alignment",
+      "subjects": [
+        "tlg-instance-ec642ad02c4900d830eb",
+        "tlg-instance-764f06fb5080cdd1a62f"
+      ],
+      "axis": "y"
+    },
+    {
+      "id": "passive-order",
+      "kind": "order",
+      "subjects": [
+        "tlg-device-5f77ce2d45b747fd283e",
+        "tlg-device-5f00d4bf91de5f3fb205"
+      ],
+      "direction": "left_to_right"
+    },
+    {
+      "id": "tail-guard",
+      "kind": "keepout",
+      "subjects": ["tlg-device-5f00d4bf91de5f3fb205"],
+      "margin": 2.0
+    },
+    {
+      "id": "output-route-priority",
+      "kind": "net_priority",
+      "subjects": ["tlg-net-89e630f044ad060f14d9"],
+      "priority": 90
+    }
+  ]
+}

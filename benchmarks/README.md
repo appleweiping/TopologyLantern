@@ -21,3 +21,8 @@ environment and workload hashes, candidate/exploration invariants, and
 informational timing over increasing search limits. It also records the installed
 distribution version and independent content hashes for the imported Python package tree
 and executing harness. Timing is never a pass/fail criterion.
+
+`python benchmarks/circuit_ingest.py examples/circuits/ota.sp --top ota
+--repetitions 100` records the graph ID, graph cardinality, and min/median/p95
+wall-clock time for the hierarchical SPICE ingest. The graph identity is checked
+on every repetition, so the timing loop also detects non-deterministic output.

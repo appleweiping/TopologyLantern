@@ -5,14 +5,26 @@
 [![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%E2%80%933.14-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-TopologyLantern generates a small, deterministic set of conceptual analog
-topology candidates from explicit design intent. Every candidate includes a
-rule-by-rule derivation, structural review notes, identifier-independent graph
-signature, transparent metrics, Pareto front, and replayable trace.
+TopologyLantern generates conceptual analog topologies and builds canonical
+typed graphs from a bounded hierarchical SPICE subset. Generated candidates
+include rule-by-rule derivations, structural review notes,
+identifier-independent signatures, transparent metrics, Pareto fronts, and
+replayable traces.
 
 The generator is deliberately offline and unsized. It does not call an LLM, a
 simulator, a PDK, or an optimizer, and it does not claim electrical performance.
 Its output is a reviewable starting point for engineering work.
+
+It can also ingest a resource-bounded hierarchical SPICE connectivity subset
+into a canonical typed graph, validate versioned layout constraints, and emit
+evidence-backed placement candidates without presenting inference as user
+intent. See [the circuit graph guide](docs/circuit-graph.md).
+
+For controlled experiments, the project also provides a compact replayable
+rule-sequence representation and a leakage-checked, constraint-guided bigram
+baseline. This is explicitly a deterministic statistical baseline—not a
+trained neural model or a circuit-performance predictor. See
+[the rule-sequence baseline guide](docs/sequence-baseline.md).
 
 ![A real TopologyLantern CLI run](docs/assets/demo.svg)
 
@@ -34,6 +46,34 @@ ruff format --check .
 pytest
 python -m build
 ```
+
+## Circuit graph and layout evidence
+
+Convert the synthetic hierarchical OTA to the stable version-1 graph contract:
+
+```console
+topology-lantern ingest-spice examples/circuits/ota.sp --top ota --pretty
+```
+
+Inspect conservative layout candidates from current-mirror and differential-pair
+connectivity:
+
+```console
+topology-lantern layout-evidence examples/circuits/ota.sp --top ota --pretty
+```
+
+The output keeps `user_constraints` and `inferred_constraints` in separate
+arrays. Every inferred item carries confidence and evidence and remains a
+candidate for review, never an implicit placement requirement. Parsing is
+offline: no expression evaluation, simulator, PDK, or external command is used.
+Identifiers are NFC-normalized with control/bidi rejection, every included file
+is read against independent per-file and cumulative budgets, and inference is
+preflight-bounded before candidate construction. Device and instance records
+carry source file/line provenance. Versioned JSON schemas ship inside the wheel.
+
+All commands use atomic, no-clobber file output. Add `--force` only when an
+existing result should be replaced; even then an output can never alias a
+netlist/include, constraint file, specification, or report input.
 
 ## Generate candidates
 
