@@ -230,6 +230,20 @@ def test_port_flags_and_noncanonical_aliases_are_rejected() -> None:
         )
 
 
+def test_port_owner_must_connect_to_its_same_named_local_net() -> None:
+    source = parse_spice(".subckt top a b\nd1 a b dmod\n.ends\n", top="top")
+    scope = source.scopes[0]
+    left, right = scope.ports
+    swapped = (
+        replace(left, net_id=right.net_id),
+        replace(right, net_id=left.net_id),
+    )
+    malformed = replace(source, scopes=(replace(scope, ports=swapped),))
+    assert circuit_graph_identity(malformed.top, malformed.scopes) == source.graph_id
+    with pytest.raises(ConnectivityRepresentationError, match="same-named net"):
+        compact_graph(malformed)
+
+
 def test_pin_validator_rejects_missing_links_and_unsafe_metadata() -> None:
     _compact, pin = _views()
     scope = pin.scopes[1]

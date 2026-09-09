@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0 - 2026-09-09
+
+### Added
+
+- Seeded, reversible primitive-device naming augmentation with exact scoped
+  replay manifests. It preserves connectivity, hierarchy, parameters and source
+  locations and verifies restoration through the existing strict graph contract
+  plus a full-source consistency digest. Connectivity views now reject malformed
+  port owners connected to a different port's local net.
+- Add an in-memory, content-bound graph-dataset contract with exact root,
+  rename, and Euler-traversal lineage; conservative name-, sizing-, and
+  model-independent leakage buckets; deterministic group-before-split
+  assignment; cross-partition stack rejection; and preflight resource limits.
+
 ## 0.5.0 - 2026-09-09
 
 ### Added

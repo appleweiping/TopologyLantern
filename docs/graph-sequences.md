@@ -71,6 +71,51 @@ partition. A different `sequence_id` is not evidence of a new topology. This
 codec prepares graph data; the earlier `tlrs1` rule-sequence baseline operates
 on a finite rewrite catalog and is a separate format.
 
+### Reversible device renaming (development)
+
+`rename_devices(graph, seed=7)` creates another identifier view of a circuit
+before Euler traversal. SHA-256 priorities choose a scope-local ordering;
+primitive-kind prefixes, the complete unsigned 64-bit seed and unique ranks
+form the new names. The generated graph is validated like any ingested graph.
+No global random state or platform floating-point functions affect the names.
+
+```python
+from topology_lantern import rename_devices, restore_device_names
+
+original_circuit = load_spice("examples/circuits/ota.sp", top="ota")
+renamed = rename_devices(original_circuit, seed=7)
+assert restore_device_names(renamed) == original_circuit
+sequence = encode_graph_sequence(compact_graph(renamed.graph), seed=9)
+```
+
+The immutable `RenamedCircuit` records the original semantic graph ID, a
+full-source evidence digest, seed, renamed graph and one `DeviceRename` per
+original primitive. It does not embed the original graph. Restoration checks
+complete unique mapping coverage, original name/ID relationships, reconstructed
+graph identity, the source digest and exact deterministic replay, rejecting
+reordered or inconsistent evidence. The digest covers source paths and locations
+that the semantic graph ID deliberately excludes; it is a consistency check, not
+authentication or a signature. Names and IDs alone change:
+nets, ports, hierarchy instance names, model names, expression strings and source
+file/line locations are preserved. Thus this is connectivity-data augmentation,
+not a source-netlist rewrite: expressions that refer to device names are not
+rewritten, and electrical simulation equivalence is not implied.
+
+Augmentation preflights the same finite graph envelope before constructing a
+compact copy: at most 512 scopes, 32 source paths, 100,000 owners and nets,
+500,000 incidences, 4,096 parameters in any one map, and 1,000,000 nested
+terminal, connection and parameter pairs in total. Every container and pair must
+have the immutable tuple shape used by the canonical graph contract.
+
+`RenamedCircuit.source_graph_id` identifies the immediate graph that was
+renamed. Likewise, `CircuitGraphSequence.source_graph_id` identifies the
+immediate graph that was traversed, so a sequence of a renamed graph contains
+the renamed graph ID. The graph-dataset record supplies a separate immutable
+`root_lineage_id` and groups all linked renames and traversals before
+partitioning. Their changed graph or sequence hashes do not make them new
+independent circuits. See the [graph-dataset guide](graph-datasets.md) for the
+versioned partition, stack, lineage, and conservative leakage-group contract.
+
 The [Euler sequence schema](schemas/euler-sequence-1.schema.json) defines the
 wire shape and reuses the installed connectivity schema for metadata. Runtime
 checks prove connectivity and identity constraints that JSON Schema alone does

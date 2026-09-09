@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import tomllib
 from importlib.metadata import version
+from pathlib import Path
 
 import pytest
 
@@ -9,11 +11,13 @@ from topology_lantern.cli import main
 from topology_lantern.search import generate_candidates
 from topology_lantern.spec import DesignSpec
 
+EXPECTED_VERSION = "0.6.0"
+
 
 def test_runtime_distribution_cli_and_report_versions_agree(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert __version__ == version("topology-lantern") == "0.5.0"
+    assert __version__ == version("topology-lantern") == EXPECTED_VERSION
     with pytest.raises(SystemExit) as raised:
         main(["--version"])
     assert raised.value.code == 0
@@ -22,3 +26,18 @@ def test_runtime_distribution_cli_and_report_versions_agree(
         DesignSpec.from_mapping({"name": "version", "supply_voltage": 1.8}), limit=1
     )
     assert result.as_dict()["tool"] == {"name": "TopologyLantern", "version": __version__}
+
+
+def test_release_version_metadata_is_synchronized() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    lock = tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"))
+    package = next(item for item in lock["package"] if item["name"] == "topology-lantern")
+    citation = Path("CITATION.cff").read_text(encoding="utf-8")
+    release = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert project["project"]["version"] == EXPECTED_VERSION
+    assert package["version"] == EXPECTED_VERSION
+    assert f"\nversion: {EXPECTED_VERSION}\n" in citation
+    assert f'RELEASE_PROJECT_VERSION: "{EXPECTED_VERSION}"' in release
+    assert f"## {EXPECTED_VERSION} - 2026-09-09" in changelog

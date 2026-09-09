@@ -80,6 +80,9 @@ topology-lantern decode-graph-sequence ota-sequence.json --output ota-restored.j
 
 The [graph-sequence guide](docs/graph-sequences.md) explains minimum-trail
 construction, terminal preservation, seeded augmentation, and dataset grouping.
+The development [graph-dataset guide](docs/graph-datasets.md) adds exact
+rename/traversal lineage, conservative name-independent leakage buckets,
+group-before-split assignment, and fail-closed stacking.
 
 Inspect conservative layout candidates from current-mirror and differential-pair
 connectivity:
