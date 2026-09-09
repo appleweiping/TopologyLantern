@@ -210,6 +210,49 @@ class CircuitGraph:
         }
 
 
+def circuit_graph_identity(top: str, scopes: tuple[CircuitScope, ...]) -> str:
+    """Compute the semantic graph identity, excluding source-path provenance."""
+
+    semantic_scopes: list[dict[str, object]] = []
+    for scope in scopes:
+        net_names_by_id = {net.node_id: net.name for net in scope.nets}
+        semantic_scopes.append(
+            {
+                "name": scope.name,
+                "ports": [port.name for port in scope.ports],
+                "parameters": list(scope.parameters),
+                "nets": [{"name": net.name, "is_global": net.is_global} for net in scope.nets],
+                "devices": [
+                    {
+                        "name": device.name,
+                        "kind": device.kind.value,
+                        "terminals": [
+                            (terminal, net_names_by_id[net_id])
+                            for terminal, net_id in device.terminals
+                        ],
+                        "model": device.model,
+                        "parameters": list(device.parameters),
+                    }
+                    for device in scope.devices
+                ],
+                "instances": [
+                    {
+                        "name": instance.name,
+                        "reference": instance.reference,
+                        "connections": [
+                            (port, net_names_by_id[net_id]) for port, net_id in instance.connections
+                        ],
+                        "parameters": list(instance.parameters),
+                    }
+                    for instance in scope.instances
+                ],
+            }
+        )
+    semantic = {"version": 1, "top": top, "scopes": semantic_scopes}
+    canonical = json.dumps(semantic, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return f"sha256:{sha256(canonical.encode('ascii')).hexdigest()}"
+
+
 def circuit_graph_json(graph: CircuitGraph, *, pretty: bool = False) -> str:
     """Serialize the stable version-1 circuit graph contract."""
     return (

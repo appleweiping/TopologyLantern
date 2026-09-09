@@ -55,6 +55,32 @@ Convert the synthetic hierarchical OTA to the stable version-1 graph contract:
 topology-lantern ingest-spice examples/circuits/ota.sp --top ota --pretty
 ```
 
+Emit either lossless connectivity representation. The compact view stores a
+terminal label on every owner/net edge; the pin-level view expands every
+terminal into an explicit pin vertex and one pin/net link:
+
+```console
+topology-lantern connectivity-graph examples/circuits/ota.sp --top ota --view compact --pretty
+topology-lantern connectivity-graph examples/circuits/ota.sp --top ota --view pin-level --pretty
+```
+
+Strictly validate a saved view and losslessly convert it without reparsing the
+SPICE source:
+
+```console
+topology-lantern transcode-connectivity ota-pins.json --view compact --output ota-compact.json
+```
+
+Encode exact connectivity as reproducible Euler trails and reconstruct it:
+
+```console
+topology-lantern encode-graph-sequence ota-compact.json --seed 7 --output ota-sequence.json
+topology-lantern decode-graph-sequence ota-sequence.json --output ota-restored.json
+```
+
+The [graph-sequence guide](docs/graph-sequences.md) explains minimum-trail
+construction, terminal preservation, seeded augmentation, and dataset grouping.
+
 Inspect conservative layout candidates from current-mirror and differential-pair
 connectivity:
 
@@ -69,7 +95,14 @@ offline: no expression evaluation, simulator, PDK, or external command is used.
 Identifiers are NFC-normalized with control/bidi rejection, every included file
 is read against independent per-file and cumulative budgets, and inference is
 preflight-bounded before candidate construction. Device and instance records
-carry source file/line provenance. Versioned JSON schemas ship inside the wheel.
+carry source file/line provenance. Versioned JSON schemas, including the
+connectivity representation contract, ship inside the wheel.
+Connectivity JSON loading is byte-bounded and rejects duplicate members,
+non-finite numbers, unknown fields, mixed-view shapes, and identity drift.
+Release archives receive the same fail-closed treatment: duplicate,
+case-fold-colliding, traversing, link, sparse, encrypted, or special members
+are rejected before installation. Signed-tag releases attach an SPDX 2.3 SBOM
+for the isolated installed distribution, exact checksums, and build provenance.
 
 All commands use atomic, no-clobber file output. Add `--force` only when an
 existing result should be replaced; even then an output can never alias a

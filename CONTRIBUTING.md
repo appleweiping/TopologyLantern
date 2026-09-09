@@ -22,7 +22,22 @@ Every pull-request commit must carry a Developer Certificate of Origin
 `Signed-off-by` trailer that exactly matches its Git author name and email.
 Create it with `git commit -s`; if you amend or rebase commits, preserve the
 matching trailer on each rewritten commit. CI checks the complete PR commit
-range rather than only the tip commit.
+range rather than only the tip commit. The required DCO workflow runs from the
+protected base revision, fetches bounded commit metadata through the GitHub
+API, and binds the unique ordered list and declared count to the PR head before
+checking final trailer paragraphs; a pull request cannot replace its verifier.
+The base repository/ref/SHA, head SHA and count are checked before and after
+download and again before publishing `DCO / commits`. Retarget edits rerun the
+gate and reset the event head to pending, so an earlier pass cannot stand in for
+a different commit set. The initial verifier-installation PR retains the existing
+CI DCO check; the following rollout PR removes it after the trusted status is
+available and required on protected main.
+
+Releases are made only from signed tags whose commits are reachable from
+protected `main` and have a GitHub-verified signature. The release workflow
+audits every wheel/sdist member, smoke-tests the isolated wheel, catalogs that
+installed tree into a pinned-tool SPDX 2.3 SBOM, and rechecks the exact asset
+checksums before provenance attestation and immutable publication.
 
 ## Rule contributions
 

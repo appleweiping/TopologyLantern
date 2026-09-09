@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/appleweiping/TopologyLantern/blob/main/docs/schemas/euler-sequence-1.schema.json",
+  "title": "TopologyLantern reversible Euler graph sequence version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "sequence_id",
+    "source_graph_id",
+    "top",
+    "sources",
+    "seed",
+    "scopes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "org.topology-lantern.euler-sequence"
+    },
+    "version": {
+      "const": 1
+    },
+    "sequence_id": {
+      "$ref": "connectivity-graph-1.schema.json#/$defs/digest"
+    },
+    "source_graph_id": {
+      "$ref": "connectivity-graph-1.schema.json#/$defs/digest"
+    },
+    "top": {
+      "$ref": "connectivity-graph-1.schema.json#/$defs/text256"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "connectivity-graph-1.schema.json#/$defs/text4096"
+      },
+      "uniqueItems": true
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {
+        "$ref": "#/$defs/scope"
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id",
+        "target",
+        "terminal",
+        "ordinal"
+      ],
+      "properties": {
+        "edge_id": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/derivedId"
+        },
+        "target": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/nodeId"
+        },
+        "terminal": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/text256"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 499999
+        }
+      }
+    },
+    "trail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "steps"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/nodeId"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500000,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "parameters",
+        "nets",
+        "owners",
+        "trails"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/nodeId"
+        },
+        "name": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/text256"
+        },
+        "parameters": {
+          "$ref": "connectivity-graph-1.schema.json#/$defs/stringMap"
+        },
+        "nets": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 100000,
+          "items": {
+            "$ref": "connectivity-graph-1.schema.json#/$defs/net"
+          }
+        },
+        "owners": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 100000,
+          "items": {
+            "$ref": "connectivity-graph-1.schema.json#/$defs/owner"
+          }
+        },
+        "trails": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 500000,
+          "items": {
+            "$ref": "#/$defs/trail"
+          }
+        }
+      }
+    }
+  }
+}

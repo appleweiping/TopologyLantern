@@ -6,10 +6,8 @@ evaluates expressions, expands arbitrary directives, or launches a simulator.
 
 from __future__ import annotations
 
-import json
 import unicodedata
 from dataclasses import dataclass, field
-from hashlib import sha256
 from pathlib import Path
 
 from topology_lantern.circuit import (
@@ -22,6 +20,7 @@ from topology_lantern.circuit import (
     CircuitPort,
     CircuitScope,
     SourceLocation,
+    circuit_graph_identity,
     stable_node_id,
 )
 
@@ -581,45 +580,8 @@ def _build_graph(
                 tuple(instances),
             )
         )
-    semantic_scopes: list[dict[str, object]] = []
-    for scope in built:
-        net_names_by_id = {net.node_id: net.name for net in scope.nets}
-        semantic_scopes.append(
-            {
-                "name": scope.name,
-                "ports": [port.name for port in scope.ports],
-                "parameters": list(scope.parameters),
-                "nets": [{"name": net.name, "is_global": net.is_global} for net in scope.nets],
-                "devices": [
-                    {
-                        "name": device.name,
-                        "kind": device.kind.value,
-                        "terminals": [
-                            (terminal, net_names_by_id[net_id])
-                            for terminal, net_id in device.terminals
-                        ],
-                        "model": device.model,
-                        "parameters": list(device.parameters),
-                    }
-                    for device in scope.devices
-                ],
-                "instances": [
-                    {
-                        "name": instance.name,
-                        "reference": instance.reference,
-                        "connections": [
-                            (port, net_names_by_id[net_id]) for port, net_id in instance.connections
-                        ],
-                        "parameters": list(instance.parameters),
-                    }
-                    for instance in scope.instances
-                ],
-            }
-        )
-    semantic = {"version": 1, "top": top, "scopes": semantic_scopes}
-    canonical = json.dumps(semantic, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return CircuitGraph(
-        f"sha256:{sha256(canonical.encode('ascii')).hexdigest()}",
+        circuit_graph_identity(top, tuple(built)),
         top,
         tuple(built),
         sources,
