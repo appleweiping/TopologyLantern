@@ -29,9 +29,8 @@ checking final trailer paragraphs; a pull request cannot replace its verifier.
 The base repository/ref/SHA, head SHA and count are checked before and after
 download and again before publishing `DCO / commits`. Retarget edits rerun the
 gate and reset the event head to pending, so an earlier pass cannot stand in for
-a different commit set. The initial verifier-installation PR retains the existing
-CI DCO check; the following rollout PR removes it after the trusted status is
-available and required on protected main.
+a different commit set. Protected main requires this trusted status; the former
+PR-checkout CI DCO job has been retired.
 
 Releases are made only from signed tags whose commits are reachable from
 protected `main` and have a GitHub-verified signature. The release workflow
