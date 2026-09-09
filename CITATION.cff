@@ -9,7 +9,7 @@ authors:
 repository-code: "https://github.com/appleweiping/TopologyLantern"
 url: "https://github.com/appleweiping/TopologyLantern"
 license: MIT
-version: 0.5.0
+version: 0.6.0
 date-released: 2026-09-09
 keywords:
   - analog topology

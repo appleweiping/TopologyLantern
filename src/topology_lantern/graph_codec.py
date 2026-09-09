@@ -863,13 +863,17 @@ def _validate_port_net_contract(
     scope: CompactScopeGraph | PinScopeGraph,
     owner_net_ids: dict[str, tuple[str, ...]],
 ) -> None:
-    port_net_ids = {
-        owner_net_ids[owner.owner_id][0] for owner in scope.owners if owner.kind is OwnerKind.PORT
-    }
+    nets = {net.node_id: net for net in scope.nets}
+    port_owners = tuple(owner for owner in scope.owners if owner.kind is OwnerKind.PORT)
+    port_net_ids = {owner_net_ids[owner.owner_id][0] for owner in port_owners}
     declared_port_net_ids = {net.node_id for net in scope.nets if net.is_port}
     if port_net_ids != declared_port_net_ids:
         raise ConnectivityRepresentationError(
             f"scope {scope.name!r} port owners and net flags are inconsistent"
+        )
+    if any(nets[owner_net_ids[owner.owner_id][0]].name != owner.name for owner in port_owners):
+        raise ConnectivityRepresentationError(
+            f"scope {scope.name!r} ports must connect to their same-named nets"
         )
 
 

@@ -35,6 +35,9 @@ def test_release_requires_main_push_ci_for_the_exact_signed_commit() -> None:
     assert "path: .release-smoke" in release
     assert "bind-installed-wheel" in release
     assert release.count("verify-release") == 3
+    assert release.count("python -I -S src/topology_lantern/release_artifacts.py") == 2
+    assert "uv run --frozen python -I - <<'PY'" in release
+    assert "uv run --frozen python -I -m topology_lantern.release_artifacts" in release
 
 
 def test_source_archive_includes_the_files_needed_by_its_tests() -> None:
@@ -48,8 +51,33 @@ def test_source_archive_includes_the_files_needed_by_its_tests() -> None:
         ".github/workflows/dco.yml",
         ".github/workflows/release.yml",
         ".github/allowed_signers",
+        "docs/graph-datasets.md",
+        "src/topology_lantern/graph_augmentation.py",
+        "src/topology_lantern/graph_dataset.py",
+        "tests/test_graph_augmentation.py",
+        "tests/test_graph_dataset.py",
         "uv.lock",
     ):
         assert f'"{name}",' in release
     assert "Re-test the audited source distribution with frozen dependencies" in release
     assert 'mktemp -d "$RUNNER_TEMP/sdist-test.XXXXXX"' in release
+
+
+def test_release_wheel_shape_and_smoke_gate_cover_graph_dataset_api() -> None:
+    release = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    for name in (
+        "topology_lantern/graph_augmentation.py",
+        "topology_lantern/graph_dataset.py",
+    ):
+        assert f'"{name}",' in release
+    for api in (
+        "root_dataset_record",
+        "rename_devices",
+        "renamed_dataset_record",
+        "traversal_dataset_record",
+        "validate_graph_dataset",
+        "split_graph_dataset",
+        "validate_dataset_split",
+        "stack_dataset_splits",
+    ):
+        assert f"topology_lantern.{api}" in release
