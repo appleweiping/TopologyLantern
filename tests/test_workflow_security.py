@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 
@@ -34,3 +35,21 @@ def test_release_requires_main_push_ci_for_the_exact_signed_commit() -> None:
     assert "path: .release-smoke" in release
     assert "bind-installed-wheel" in release
     assert release.count("verify-release") == 3
+
+
+def test_source_archive_includes_the_files_needed_by_its_tests() -> None:
+    config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    profile = config["tool"]["hatch"]["build"]["targets"]["sdist"]
+    assert {"/.github/workflows", "/.github/allowed_signers", "/uv.lock"} <= set(profile["include"])
+    assert not {"/.github", "/.github/workflows", "/uv.lock"} & set(profile.get("exclude", []))
+    release = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    for name in (
+        ".github/workflows/ci.yml",
+        ".github/workflows/dco.yml",
+        ".github/workflows/release.yml",
+        ".github/allowed_signers",
+        "uv.lock",
+    ):
+        assert f'"{name}",' in release
+    assert "Re-test the audited source distribution with frozen dependencies" in release
+    assert 'mktemp -d "$RUNNER_TEMP/sdist-test.XXXXXX"' in release

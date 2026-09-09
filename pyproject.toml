@@ -46,7 +46,11 @@ Issues = "https://github.com/appleweiping/TopologyLantern/issues"
 Source = "https://github.com/appleweiping/TopologyLantern"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/examples", "/benchmarks", "/docs", "/.github/allowed_signers", "/*.md", "/LICENSE", "/CITATION.cff"]
+include = [
+  "/src", "/tests", "/examples", "/benchmarks", "/docs",
+  "/.github/workflows", "/.github/allowed_signers", "/uv.lock",
+  "/*.md", "/LICENSE", "/CITATION.cff",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/topology_lantern"]

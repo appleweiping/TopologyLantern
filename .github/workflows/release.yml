@@ -150,6 +150,11 @@ jobs:
                   expected_root=f"topology_lantern-{os.environ['RELEASE_PROJECT_VERSION']}",
               )
           required_source = {
+              ".github/workflows/ci.yml",
+              ".github/workflows/dco.yml",
+              ".github/workflows/release.yml",
+              ".github/allowed_signers",
+              "uv.lock",
               "CITATION.cff",
               "benchmarks/manifest.json",
               "benchmarks/sky130-common-source.json",
@@ -196,6 +201,16 @@ jobs:
           if missing := required_wheel - wheel_names:
               raise SystemExit(f"wheel is missing: {sorted(missing)}")
           PY
+      - name: Re-test the audited source distribution with frozen dependencies
+        run: |
+          source_test_root="$(mktemp -d "$RUNNER_TEMP/sdist-test.XXXXXX")"
+          tar -xzf "dist/topology_lantern-$RELEASE_PROJECT_VERSION.tar.gz" \
+            --directory "$source_test_root" --no-same-owner --no-same-permissions
+          (
+            cd "$source_test_root/topology_lantern-$RELEASE_PROJECT_VERSION"
+            uv sync --frozen --extra dev
+            uv run --frozen pytest
+          )
       - name: Install wheel and smoke-check metadata and CLI version
         run: |
           python -m venv .release-smoke
