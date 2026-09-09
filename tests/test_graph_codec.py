@@ -129,13 +129,13 @@ def test_source_graph_identity_is_recomputed_from_each_view_semantics() -> None:
 def test_canonical_node_id_and_sequence_order_cannot_be_relabelled() -> None:
     compact, pin = _views()
     scope = compact.scopes[1]
-    with pytest.raises(ConnectivityRepresentationError, match="scope\[1\] identity"):
+    with pytest.raises(ConnectivityRepresentationError, match=r"scope\[1\] identity"):
         validate_compact_graph(
             replace(compact, scopes=(*compact.scopes[:1], replace(scope, scope_id="tlg-scope-bad")))
         )
 
     owner = scope.owners[0]
-    with pytest.raises(ConnectivityRepresentationError, match="owner\[0\] identity"):
+    with pytest.raises(ConnectivityRepresentationError, match=r"owner\[0\] identity"):
         validate_compact_graph(
             replace(
                 compact,
