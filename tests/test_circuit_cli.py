@@ -10,6 +10,86 @@ import pytest
 from topology_lantern.cli import EXIT_INPUT, EXIT_OK, main
 
 
+def test_connectivity_graph_cli_emits_both_lossless_views(tmp_path: Path) -> None:
+    netlist = tmp_path / "hierarchy.sp"
+    netlist.write_text(
+        ".subckt leaf p n\nr1 p n 1k\n.ends\n.subckt top p n\nx1 p n leaf\nc1 p n 1p\n.ends\n",
+        encoding="utf-8",
+    )
+    compact_output = io.StringIO()
+    assert (
+        main(
+            ["connectivity-graph", str(netlist), "--top", "top", "--view", "compact"],
+            stdout=compact_output,
+        )
+        == EXIT_OK
+    )
+    compact = json.loads(compact_output.getvalue())
+    assert compact["view"] == "compact"
+    assert compact["source_graph_id"].startswith("sha256:")
+
+    pin_path = tmp_path / "pin.json"
+    assert (
+        main(
+            [
+                "connectivity-graph",
+                str(netlist),
+                "--top",
+                "top",
+                "--view",
+                "pin-level",
+                "--pretty",
+                "--output",
+                str(pin_path),
+            ]
+        )
+        == EXIT_OK
+    )
+    pin = json.loads(pin_path.read_text(encoding="utf-8"))
+    assert pin["view"] == "pin-level"
+    assert sum(len(scope["pins"]) for scope in pin["scopes"]) == sum(
+        len(scope["links"]) for scope in pin["scopes"]
+    )
+
+    transcoded = tmp_path / "compact.json"
+    assert (
+        main(
+            [
+                "transcode-connectivity",
+                str(pin_path),
+                "--view",
+                "compact",
+                "--output",
+                str(transcoded),
+            ]
+        )
+        == EXIT_OK
+    )
+    converted = json.loads(transcoded.read_text(encoding="utf-8"))
+    assert converted["view"] == "compact"
+    assert converted["source_graph_id"] == compact["source_graph_id"]
+
+    original_pin = pin_path.read_bytes()
+    errors = io.StringIO()
+    assert (
+        main(
+            [
+                "transcode-connectivity",
+                str(pin_path),
+                "--view",
+                "compact",
+                "--output",
+                str(pin_path),
+                "--force",
+            ],
+            stderr=errors,
+        )
+        == EXIT_INPUT
+    )
+    assert "aliases protected input" in errors.getvalue()
+    assert pin_path.read_bytes() == original_pin
+
+
 def test_ingest_and_layout_evidence_cli(tmp_path: Path) -> None:
     netlist = tmp_path / "mirror.sp"
     netlist.write_text(

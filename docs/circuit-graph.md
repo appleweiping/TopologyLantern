@@ -90,6 +90,65 @@ print(graph.graph_id)
 print(circuit_graph_json(graph, pretty=True))
 ```
 
+## Lossless compact and pin-level views
+
+The source graph can be transformed into two independently validated
+representations. `compact_graph()` creates an owner/net bipartite graph: ports,
+primitive devices, and hierarchical instances are owners, and each incidence
+edge carries the exact terminal name and ordinal. `pin_graph()` expands each
+incidence into an explicit pin node and a single pin/net link. Both retain
+scope parameters, primitive metadata, instance overrides and effective
+parameters, source locations, global-net identities, and the original full
+`graph_id`.
+
+Every representation has its own full SHA-256 over its canonical body. IDs for
+edges, pins, and links are derived from their exact incidence, so changing a
+terminal, ordinal, owner, or net is detected. Validation also checks primitive
+terminal/model contracts, instance reference scope and ordered port arity,
+effective parameter recomputation, port-net flags, and the rule that only an
+identically named global net may reuse one net identity across scopes.
+
+The transformations are executable round-trip oracles rather than wrappers
+around the source object:
+
+```python
+from topology_lantern import (
+    assert_lossless_round_trip,
+    compact_to_circuit,
+    connectivity_graph_json,
+    load_spice,
+    parse_connectivity_graph,
+)
+
+source = load_spice("examples/circuits/ota.sp", top="ota")
+compact, pins = assert_lossless_round_trip(source)
+assert compact_to_circuit(compact) == source
+serialized = connectivity_graph_json(pins, pretty=True)
+assert parse_connectivity_graph(serialized) == pins
+```
+
+Untrusted JSON is accepted only through `parse_connectivity_graph()` or
+`load_connectivity_graph()`. The decoder is UTF-8 and size bounded, rejects
+duplicate members, non-finite numbers, unknown fields, and mixed compact/pin
+shapes, then rechecks every content-derived identity and graph-wide invariant.
+The CLI can perform the same validated, lossless transcode in either direction:
+
+```console
+topology-lantern connectivity-graph examples/circuits/ota.sp --top ota \
+  --view pin-level --output ota-pins.json
+topology-lantern transcode-connectivity ota-pins.json --view compact \
+  --output ota-compact.json
+```
+
+The matching JSON Schema is
+[`schemas/connectivity-graph-1.schema.json`](schemas/connectivity-graph-1.schema.json).
+Schema validation covers portable shape; runtime validation additionally
+enforces graph-wide identity, incidence, reference, and electrical invariants.
+
+The [reversible graph-sequence codec](graph-sequences.md) turns this compact
+graph into minimum-count Euler trails and reconstructs its exact connectivity.
+Seeded traversal choices provide reproducible data augmentation.
+
 The synthetic clean-room corpus contains standalone current-mirror and
 differential-pair blocks, every accepted primitive family, a hierarchical OTA,
 and intentionally rejected adversarial inputs. The checked-in OTA golden graph

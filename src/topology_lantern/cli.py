@@ -18,6 +18,23 @@ from topology_lantern.circuit import CircuitGraph, circuit_graph_json
 from topology_lantern.compare import diff_results, render_diff
 from topology_lantern.emit import candidate_spice, diff_json, result_json, result_text
 from topology_lantern.explain import replay_rule_ids
+from topology_lantern.graph_codec import (
+    CompactCircuitGraph,
+    ConnectivityView,
+    PinCircuitGraph,
+    compact_graph,
+    compact_to_pin,
+    connectivity_graph_json,
+    load_connectivity_graph,
+    pin_graph,
+    pin_to_compact,
+)
+from topology_lantern.graph_sequence import (
+    decode_graph_sequence,
+    encode_graph_sequence,
+    graph_sequence_json,
+    load_graph_sequence,
+)
 from topology_lantern.layout import (
     layout_inference_report,
     layout_report_json,
@@ -112,6 +129,51 @@ def _parser() -> argparse.ArgumentParser:
     ingest.add_argument("--pretty", action="store_true")
     ingest.add_argument("--output")
     ingest.add_argument("--force", action="store_true", help="atomically replace output")
+
+    connectivity = commands.add_parser(
+        "connectivity-graph",
+        help="emit a lossless compact owner/net or explicit pin/net circuit view",
+    )
+    connectivity.add_argument("netlist")
+    connectivity.add_argument("--top", help="explicit top subcircuit; inferred when unambiguous")
+    connectivity.add_argument(
+        "--view",
+        choices=tuple(item.value for item in ConnectivityView),
+        default=ConnectivityView.COMPACT.value,
+    )
+    connectivity.add_argument("--pretty", action="store_true")
+    connectivity.add_argument("--output")
+    connectivity.add_argument("--force", action="store_true", help="atomically replace output")
+
+    transcode = commands.add_parser(
+        "transcode-connectivity",
+        help="strictly validate and convert a version-1 connectivity JSON view",
+    )
+    transcode.add_argument("graph")
+    transcode.add_argument(
+        "--view",
+        choices=tuple(item.value for item in ConnectivityView),
+        required=True,
+    )
+    transcode.add_argument("--pretty", action="store_true")
+    transcode.add_argument("--output")
+    transcode.add_argument("--force", action="store_true", help="atomically replace output")
+
+    sequence = commands.add_parser(
+        "encode-graph-sequence", help="encode connectivity as Euler trails"
+    )
+    sequence.add_argument("graph")
+    sequence.add_argument("--seed", type=int, default=0)
+    sequence.add_argument("--pretty", action="store_true")
+    sequence.add_argument("--output")
+    sequence.add_argument("--force", action="store_true", help="atomically replace output")
+    decode_sequence = commands.add_parser(
+        "decode-graph-sequence", help="reconstruct a compact graph from checked Euler trails"
+    )
+    decode_sequence.add_argument("sequence")
+    decode_sequence.add_argument("--pretty", action="store_true")
+    decode_sequence.add_argument("--output")
+    decode_sequence.add_argument("--force", action="store_true", help="atomically replace output")
 
     layout = commands.add_parser(
         "layout-evidence",
@@ -414,6 +476,70 @@ def main(
                 args.output,
                 output,
                 protected_paths=_graph_source_paths(args.netlist, graph),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "connectivity-graph":
+            graph = load_spice(args.netlist, top=args.top)
+            view = (
+                pin_graph(graph)
+                if args.view == ConnectivityView.PIN_LEVEL
+                else compact_graph(graph)
+            )
+            _write(
+                connectivity_graph_json(view, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=_graph_source_paths(args.netlist, graph),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "transcode-connectivity":
+            source_view = load_connectivity_graph(args.graph)
+            target_view: CompactCircuitGraph | PinCircuitGraph
+            if args.view == ConnectivityView.COMPACT:
+                target_view = (
+                    source_view
+                    if isinstance(source_view, CompactCircuitGraph)
+                    else pin_to_compact(source_view)
+                )
+            else:
+                target_view = (
+                    compact_to_pin(source_view)
+                    if isinstance(source_view, CompactCircuitGraph)
+                    else source_view
+                )
+            _write(
+                connectivity_graph_json(target_view, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(args.graph,),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "encode-graph-sequence":
+            sequence_source = load_connectivity_graph(args.graph)
+            compact_source = (
+                sequence_source
+                if isinstance(sequence_source, CompactCircuitGraph)
+                else pin_to_compact(sequence_source)
+            )
+            sequence = encode_graph_sequence(compact_source, seed=args.seed)
+            _write(
+                graph_sequence_json(sequence, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(args.graph,),
+                force=args.force,
+            )
+            return EXIT_OK
+        if args.command == "decode-graph-sequence":
+            reconstructed = decode_graph_sequence(load_graph_sequence(args.sequence))
+            _write(
+                connectivity_graph_json(reconstructed, pretty=args.pretty),
+                args.output,
+                output,
+                protected_paths=(args.sequence,),
                 force=args.force,
             )
             return EXIT_OK

@@ -9,6 +9,8 @@ permissions:
   contents: read
 
 jobs:
+  # Transitional check for the PR that installs dco.yml on the protected base.
+  # Remove this job in the next PR; all later DCO checks run via pull_request_target.
   dco:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

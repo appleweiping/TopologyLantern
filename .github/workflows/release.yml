@@ -13,10 +13,14 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  RELEASE_PROJECT_NAME: topology-lantern
+  RELEASE_PROJECT_VERSION: "0.5.0"
+  RELEASE_SYFT_VERSION: "1.51.1"
+
 jobs:
   verify-ci:
     name: Require main ancestry and successful CI
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -29,11 +33,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Verify tag commit is reachable from main
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config gpg.format ssh
-          git config gpg.ssh.allowedSignersFile "$GITHUB_WORKSPACE/.github/allowed_signers"
-          git verify-tag "$GITHUB_REF_NAME"
+          case "$GITHUB_REF" in
+            refs/tags/v*) ;;
+            *) echo "release workflow must run from a version tag, not $GITHUB_REF" >&2; exit 1 ;;
+          esac
           git fetch --no-tags origin main
+          git show origin/main:.github/allowed_signers > "$RUNNER_TEMP/allowed_signers"
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile "$RUNNER_TEMP/allowed_signers"
+          git verify-tag "$GITHUB_REF_NAME"
+          commit_verified="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.commit.verification.verified')"
+          commit_reason="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.commit.verification.reason')"
+          if [ "$commit_verified" != "true" ]; then
+            echo "release commit signature is not verified (reason: $commit_reason)" >&2
+            exit 1
+          fi
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
             echo "release commit is not reachable from origin/main" >&2
             exit 1
@@ -43,7 +60,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           for attempt in $(seq 1 90); do
-            successful="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+            successful="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" --jq "[.workflow_runs[] | select(.conclusion == \"success\" and .event == \"push\" and .head_branch == \"main\" and .head_sha == \"$GITHUB_SHA\")] | length")"
             if [ "$successful" -gt 0 ]; then
               echo "verified successful CI workflow for $GITHUB_SHA"
               exit 0
@@ -57,9 +74,7 @@ jobs:
   build:
     name: Build and verify distributions
     needs: verify-ci
-    if: >-
-      ${{ always() && (github.event_name == 'workflow_dispatch' ||
-      needs.verify-ci.result == 'success') }}
+    if: needs.verify-ci.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -87,8 +102,8 @@ jobs:
           uv run --frozen pytest --cov=topology_lantern --cov-branch --cov-report=term-missing
       - name: Verify tag matches package version
         env:
-          RELEASE_EVENT: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.ref_name }}
+          EXPECTED_VERSION: ${{ env.RELEASE_PROJECT_VERSION }}
         run: |
           python - <<'PY'
           import os
@@ -96,12 +111,16 @@ jobs:
           from pathlib import Path
 
           version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-          if os.environ["RELEASE_EVENT"] == "push":
-              expected = f"v{version}"
-              if os.environ["RELEASE_TAG"] != expected:
-                  raise SystemExit(
-                      f"release tag {os.environ['RELEASE_TAG']!r} does not match {expected!r}"
-                  )
+          if version != os.environ["EXPECTED_VERSION"]:
+              raise SystemExit(
+                  f"project version {version!r} does not match release workflow "
+                  f"version {os.environ['EXPECTED_VERSION']!r}"
+              )
+          expected = f"v{version}"
+          if os.environ["RELEASE_TAG"] != expected:
+              raise SystemExit(
+                  f"release tag {os.environ['RELEASE_TAG']!r} does not match {expected!r}"
+              )
           print(f"validated project version {version}")
           PY
       - name: Fix build timestamp to the source commit
@@ -113,23 +132,32 @@ jobs:
       - name: Validate distribution metadata and shape
         run: |
           uv run --frozen python -m twine check --strict dist/*
-          python - <<'PY'
+          uv run --frozen python - <<'PY'
           import tarfile
           import zipfile
+          import os
           from pathlib import Path
+
+          from topology_lantern.distribution_audit import audit_sdist, audit_wheel
 
           wheels = tuple(Path("dist").glob("*.whl"))
           sdists = tuple(Path("dist").glob("*.tar.gz"))
           if len(wheels) != 1 or len(sdists) != 1 or len(tuple(Path("dist").iterdir())) != 2:
               raise SystemExit("expected exactly one wheel and one .tar.gz source distribution")
           with tarfile.open(sdists[0], "r:gz") as archive:
-              source_names = {"/".join(name.split("/")[1:]) for name in archive.getnames()}
+              source_names = audit_sdist(
+                  archive,
+                  expected_root=f"topology_lantern-{os.environ['RELEASE_PROJECT_VERSION']}",
+              )
           required_source = {
               "CITATION.cff",
               "benchmarks/manifest.json",
               "benchmarks/sky130-common-source.json",
+              "docs/graph-sequences.md",
               "docs/schemas/analog-sizing-benchmark-1.schema.json",
               "docs/schemas/circuit-graph-1.schema.json",
+              "docs/schemas/connectivity-graph-1.schema.json",
+              "docs/schemas/euler-sequence-1.schema.json",
               "docs/schemas/layout-constraint-report-1.schema.json",
               "docs/schemas/layout-constraints-1.schema.json",
               "docs/schemas/rule-sequence-checkpoint-1.schema.json",
@@ -137,16 +165,28 @@ jobs:
               "docs/schemas/rule-sequence-samples-1.schema.json",
               "examples/circuits/device_families.sp",
               "examples/sky130_common_source.json",
+              "src/topology_lantern/dco.py",
+              "src/topology_lantern/distribution_audit.py",
+              "src/topology_lantern/graph_codec.py",
+              "src/topology_lantern/graph_sequence.py",
+              "src/topology_lantern/release_artifacts.py",
           }
           if missing := required_source - source_names:
               raise SystemExit(f"source distribution is missing: {sorted(missing)}")
           with zipfile.ZipFile(wheels[0]) as archive:
-              wheel_names = set(archive.namelist())
+              wheel_names = audit_wheel(archive)
           required_wheel = {
               "topology_lantern/_version.py",
+              "topology_lantern/dco.py",
+              "topology_lantern/distribution_audit.py",
+              "topology_lantern/graph_codec.py",
+              "topology_lantern/graph_sequence.py",
               "topology_lantern/py.typed",
+              "topology_lantern/release_artifacts.py",
               "topology_lantern/schemas/analog-sizing-benchmark-1.schema.json",
               "topology_lantern/schemas/circuit-graph-1.schema.json",
+              "topology_lantern/schemas/connectivity-graph-1.schema.json",
+              "topology_lantern/schemas/euler-sequence-1.schema.json",
               "topology_lantern/schemas/layout-constraint-report-1.schema.json",
               "topology_lantern/schemas/layout-constraints-1.schema.json",
               "topology_lantern/schemas/rule-sequence-checkpoint-1.schema.json",
@@ -186,6 +226,8 @@ jobs:
           for name in (
               "analog-sizing-benchmark-1.schema.json",
               "circuit-graph-1.schema.json",
+              "connectivity-graph-1.schema.json",
+              "euler-sequence-1.schema.json",
               "layout-constraint-report-1.schema.json",
               "layout-constraints-1.schema.json",
               "rule-sequence-checkpoint-1.schema.json",
@@ -206,20 +248,40 @@ jobs:
               graph = json.loads(ingested.stdout)
               if graph["schema"] != "org.topology-lantern.circuit-graph":
                   raise SystemExit("isolated installed CLI produced an invalid graph contract")
-              if len(graph["scopes"]) != 1 or sum(len(scope["devices"]) for scope in graph["scopes"]) != 1:
+              if len(graph["scopes"]) != 1 or sum(
+                  len(scope["devices"]) for scope in graph["scopes"]
+              ) != 1:
                   raise SystemExit("isolated installed CLI produced an unexpected graph shape")
+              compact = topology_lantern.compact_graph(topology_lantern.load_spice(netlist))
+              sequence = topology_lantern.encode_graph_sequence(compact, seed=7)
+              restored = topology_lantern.parse_graph_sequence(
+                  topology_lantern.graph_sequence_json(sequence)
+              )
+              if topology_lantern.decode_graph_sequence(restored) != compact:
+                  raise SystemExit("installed graph sequence did not preserve exact connectivity")
               training = Path(directory, "training.json")
               heldout = Path(directory, "heldout.json")
               training.write_text(
-                  json.dumps({"name": "training", "supply_voltage": 1.2}), encoding="utf-8"
+                  json.dumps({"name": "training", "supply_voltage": 1.2}),
+                  encoding="utf-8",
               )
               heldout.write_text(
-                  json.dumps({"name": "heldout", "supply_voltage": 2.4}), encoding="utf-8"
+                  json.dumps({"name": "heldout", "supply_voltage": 2.4}),
+                  encoding="utf-8",
               )
               checkpoint = Path(directory, "checkpoint.json")
               subprocess.run(
-                  [cli, "baseline-train", str(training), "--heldout-spec", str(heldout),
-                   "--candidate-limit", "1", "--output", str(checkpoint)],
+                  [
+                      cli,
+                      "baseline-train",
+                      str(training),
+                      "--heldout-spec",
+                      str(heldout),
+                      "--candidate-limit",
+                      "1",
+                      "--output",
+                      str(checkpoint),
+                  ],
                   check=True,
                   capture_output=True,
                   text=True,
@@ -239,24 +301,66 @@ jobs:
               if sample_report["valid_draws"] != valid_draws:
                   raise SystemExit("isolated installed baseline CLI misreported draw accounting")
           PY
+          site_packages="$(.release-smoke/bin/python -I -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
+          installation_root="$(realpath .release-smoke)"
+          workspace_root="$(realpath "$GITHUB_WORKSPACE")"
+          if [ "$installation_root" != "$workspace_root/.release-smoke" ]; then
+            echo "release virtual environment resolved outside its expected root" >&2
+            exit 1
+          fi
+          case "$site_packages" in
+            "$installation_root"/*) ;;
+            *) echo "installed site-packages escaped the release virtual environment" >&2; exit 1 ;;
+          esac
+          echo "RELEASE_INSTALLATION_ROOT=$installation_root" >> "$GITHUB_ENV"
+          echo "RELEASE_SITE_PACKAGES=$site_packages" >> "$GITHUB_ENV"
       - name: Generate SPDX software bill of materials
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        env:
+          SYFT_CHECK_FOR_APP_UPDATE: "false"
+          SYFT_FILE_METADATA_SELECTION: all
+          SYFT_SOURCE_NAME: ${{ env.RELEASE_PROJECT_NAME }}
+          SYFT_SOURCE_VERSION: ${{ env.RELEASE_PROJECT_VERSION }}
         with:
-          path: dist
+          path: .release-smoke
           format: spdx-json
           output-file: dist/SBOM.spdx.json
+          syft-version: v${{ env.RELEASE_SYFT_VERSION }}
           upload-artifact: false
-      - name: Generate and verify release checksums
+          upload-release-assets: false
+      - name: Validate the installed-wheel SBOM and release checksums
         run: |
-          cd dist
-          sha256sum -- ./*.whl ./*.tar.gz ./SBOM.spdx.json > SHA256SUMS
-          sha256sum --check SHA256SUMS
-          python -c 'import json; assert json.load(open("SBOM.spdx.json"))["spdxVersion"] == "SPDX-2.3"'
+          uv run --frozen python -m topology_lantern.release_artifacts bind-installed-wheel \
+            --sbom dist/SBOM.spdx.json \
+            --site-packages "$RELEASE_SITE_PACKAGES" \
+            --installation-root "$RELEASE_INSTALLATION_ROOT" \
+            --expected-external-path "bin/topology-lantern" \
+            --wheel "dist/topology_lantern-$RELEASE_PROJECT_VERSION-py3-none-any.whl" \
+            --name "$RELEASE_PROJECT_NAME" \
+            --version "$RELEASE_PROJECT_VERSION"
+          uv run --frozen python -m topology_lantern.release_artifacts validate-sbom \
+            --sbom dist/SBOM.spdx.json \
+            --name "$RELEASE_PROJECT_NAME" \
+            --version "$RELEASE_PROJECT_VERSION" \
+            --syft-version "$RELEASE_SYFT_VERSION"
+          uv run --frozen python -m topology_lantern.release_artifacts write-checksums \
+            --directory dist \
+            --name "$RELEASE_PROJECT_NAME" \
+            --version "$RELEASE_PROJECT_VERSION"
+          uv run --frozen python -m topology_lantern.release_artifacts verify-release \
+            --directory dist \
+            --name "$RELEASE_PROJECT_NAME" \
+            --version "$RELEASE_PROJECT_VERSION" \
+            --syft-version "$RELEASE_SYFT_VERSION"
       - name: Upload verified distributions and release evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-distributions
-          path: dist/*
+          path: |
+            dist/topology_lantern-${{ env.RELEASE_PROJECT_VERSION }}-py3-none-any.whl
+            dist/topology_lantern-${{ env.RELEASE_PROJECT_VERSION }}.tar.gz
+            dist/SBOM.spdx.json
+            dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
 
@@ -271,15 +375,26 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - name: Check out release validation helper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Download verified distributions
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-distributions
           path: dist
+      - name: Re-verify downloaded release assets
+        run: >-
+          python src/topology_lantern/release_artifacts.py verify-release
+          --directory dist
+          --name "$RELEASE_PROJECT_NAME"
+          --version "$RELEASE_PROJECT_VERSION"
+          --syft-version "$RELEASE_SYFT_VERSION"
       - name: Attest verified distributions
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/*
+          subject-checksums: dist/SHA256SUMS
 
   github-release:
     name: Create GitHub release
@@ -292,11 +407,22 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out release validation helper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Download verified distributions
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-distributions
           path: dist
+      - name: Re-verify downloaded release assets
+        run: >-
+          python src/topology_lantern/release_artifacts.py verify-release
+          --directory dist
+          --name "$RELEASE_PROJECT_NAME"
+          --version "$RELEASE_PROJECT_VERSION"
+          --syft-version "$RELEASE_SYFT_VERSION"
       - name: Create release exactly once
         env:
           GH_TOKEN: ${{ github.token }}
@@ -311,4 +437,9 @@ jobs:
             echo "GitHub release $RELEASE_TAG already exists; refusing to replace its assets."
             exit 1
           fi
-          gh release create "$RELEASE_TAG" dist/* --verify-tag --generate-notes --repo "$GITHUB_REPOSITORY"
+          gh release create "$RELEASE_TAG" \
+            "dist/topology_lantern-$RELEASE_PROJECT_VERSION-py3-none-any.whl" \
+            "dist/topology_lantern-$RELEASE_PROJECT_VERSION.tar.gz" \
+            dist/SBOM.spdx.json \
+            dist/SHA256SUMS \
+            --verify-tag --generate-notes --repo "$GITHUB_REPOSITORY"

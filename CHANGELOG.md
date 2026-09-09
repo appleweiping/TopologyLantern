@@ -1,6 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 - 2026-09-09
+
+### Added
+
+- Reversible terminal-labelled Euler-trail sequences with minimum trail-count
+  construction, deterministic traversal augmentation, exact graph reconstruction,
+  a bounded versioned wire format, API/CLI, and exhaustive small-multigraph oracles.
+- Lossless compact owner/net and explicit pin/net representations for typed
+  circuit graphs, with content identities, stable incidence IDs, cross-scope
+  global-net and instance validation, mutual round-trip checks, strict bounded
+  JSON loading, lossless CLI transcoding, a versioned JSON schema,
+  documentation, and adversarial tests.
+- A trusted-base DCO gate whose bounded paginated commit set is bound to the
+  final pull-request base/head/count with retarget reruns and pending-status
+  reset, fail-closed wheel/sdist member auditing, verified
+  release-commit ancestry and signature, a pinned SPDX SBOM whose required
+  document-header profile and release-specific file relationships bind the exact
+  wheel RECORD and installed-tree contents, an exact four-asset allowlist, and
+  checksum revalidation before attestation and publication.
 
 ## 0.4.0 - 2026-09-07
 

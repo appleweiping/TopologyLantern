@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "topology-lantern"
-version = "0.4.0"
+version = "0.5.0"
 description = "Deterministic analog topology generation, circuit graphs, and layout evidence"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,7 +46,7 @@ Issues = "https://github.com/appleweiping/TopologyLantern/issues"
 Source = "https://github.com/appleweiping/TopologyLantern"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/examples", "/benchmarks", "/docs", "/*.md", "/LICENSE", "/CITATION.cff"]
+include = ["/src", "/tests", "/examples", "/benchmarks", "/docs", "/.github/allowed_signers", "/*.md", "/LICENSE", "/CITATION.cff"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/topology_lantern"]
