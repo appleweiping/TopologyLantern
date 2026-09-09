@@ -4,6 +4,12 @@ import re
 from pathlib import Path
 
 
+def test_transitional_pr_checkout_dco_is_retired() -> None:
+    ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "\n  dco:" not in ci
+    assert "git rev-list" not in ci
+
+
 def test_actions_are_pinned_to_full_commits() -> None:
     workflows = tuple(Path(".github/workflows").glob("*.yml"))
     assert workflows
