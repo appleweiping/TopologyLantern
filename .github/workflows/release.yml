@@ -386,7 +386,7 @@ jobs:
           path: dist
       - name: Re-verify downloaded release assets
         run: >-
-          python src/topology_lantern/release_artifacts.py verify-release
+          python -I src/topology_lantern/release_artifacts.py verify-release
           --directory dist
           --name "$RELEASE_PROJECT_NAME"
           --version "$RELEASE_PROJECT_VERSION"
@@ -418,7 +418,7 @@ jobs:
           path: dist
       - name: Re-verify downloaded release assets
         run: >-
-          python src/topology_lantern/release_artifacts.py verify-release
+          python -I src/topology_lantern/release_artifacts.py verify-release
           --directory dist
           --name "$RELEASE_PROJECT_NAME"
           --version "$RELEASE_PROJECT_VERSION"

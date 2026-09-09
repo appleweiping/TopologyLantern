@@ -153,4 +153,4 @@ def test_workflow_binds_base_head_count_and_resets_pending_on_retarget() -> None
         assert workflow.count(anchor) >= 4
     assert "if: always()" in workflow
     assert "persist-credentials: false" in workflow
-    assert "python src/topology_lantern/dco.py" in workflow
+    assert "python -I src/topology_lantern/dco.py" in workflow
